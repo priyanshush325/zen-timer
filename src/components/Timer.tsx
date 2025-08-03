@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ScrambleGenerator, { ScrambleGeneratorRef } from './ScrambleGenerator';
 
 type TimerState = 'idle' | 'ready' | 'running' | 'stopped';
 
@@ -14,6 +15,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const [solveHistory, setSolveHistory] = useState<number[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [, forceUpdate] = useState({});
+  const scrambleRef = useRef<ScrambleGeneratorRef>(null);
 
   // Determine if we should be in focused mode (fade out UI)
   const isFocused = isKeyDown || state === 'running';
@@ -115,6 +117,11 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       const finalTime = Date.now() - startTimeRef.current;
       setTime(finalTime); // Update the display
       setSolveHistory(prev => [finalTime, ...prev.slice(0, 49)]); // Save to history
+      
+      // Generate a new scramble after completing a solve
+      if (scrambleRef.current) {
+        scrambleRef.current.newScramble();
+      }
     }
     
     setState('stopped');
@@ -135,6 +142,18 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     if (event.code === 'KeyH' && !isKeyDown && state !== 'running') {
       event.preventDefault();
       setShowHistory(!showHistory);
+      return;
+    }
+
+    if ((event.code === 'ArrowLeft' || event.code === 'ArrowRight') && !isKeyDown && state !== 'running') {
+      event.preventDefault();
+      if (scrambleRef.current) {
+        if (event.code === 'ArrowLeft') {
+          scrambleRef.current.previousScramble();
+        } else {
+          scrambleRef.current.nextScramble();
+        }
+      }
       return;
     }
 
@@ -220,6 +239,17 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative px-8">
+      {/* Scramble display */}
+      <div 
+        className="absolute top-8 left-8 right-8 transition-opacity duration-300"
+        style={{ opacity: isFocused ? 0.1 : 1 }}
+      >
+        <ScrambleGenerator 
+          ref={scrambleRef}
+          onNewScramble={() => {}}
+        />
+      </div>
+      
       {/* Main timer area */}
         <div className="text-center max-w-4xl mx-auto">
         <div className="mb-8">
@@ -324,6 +354,30 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
           )}
         </div>
         <div className="flex gap-4 justify-center">
+          <div>
+            Press{' '}
+            <kbd 
+              className="px-2 py-1 rounded text-xs font-medium mx-1" 
+              style={{ 
+                background: 'var(--gray-100)',
+                borderColor: 'var(--border-medium)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              ←
+            </kbd>
+            <kbd 
+              className="px-2 py-1 rounded text-xs font-medium mx-1" 
+              style={{ 
+                background: 'var(--gray-100)',
+                borderColor: 'var(--border-medium)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              →
+            </kbd>{' '}
+            for scrambles
+          </div>
           <div>
             Press{' '}
             <kbd 
