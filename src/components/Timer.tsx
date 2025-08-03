@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScrambleGenerator, { ScrambleGeneratorRef } from './ScrambleGenerator';
 
-type TimerState = 'idle' | 'ready' | 'running' | 'stopped';
+type TimerState = 'idle' | 'inspection' | 'ready' | 'running' | 'stopped';
 type SolveState = 'ok' | 'plus2' | 'dnf';
 
 interface SolveRecord {
@@ -27,11 +27,13 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [deleteConfirmationActive, setDeleteConfirmationActive] = useState(false);
   const [toastFadingOut, setToastFadingOut] = useState(false);
+  const [inspectionTime, setInspectionTime] = useState(15);
   const [, forceUpdate] = useState({});
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
+  const inspectionStartRef = useRef<number | null>(null);
 
   // Determine if we should be in focused mode (fade out UI)
-  const isFocused = isKeyDown || state === 'running';
+  const isFocused = isKeyDown || state === 'inspection' || state === 'running';
 
   // Load solve history from localStorage on component mount
   useEffect(() => {
@@ -201,6 +203,8 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     }
     
     switch (state) {
+      case 'inspection':
+        return inspectionTime <= 3 ? '#ef4444' : '#f59e0b'; // Red if 3 or less, orange otherwise
       case 'running':
         return '#000000'; // Black
       case 'stopped':
@@ -213,6 +217,9 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const getDisplayText = (): string => {
     if (state === 'idle') {
       return '0.00';
+    }
+    if (state === 'inspection') {
+      return inspectionTime.toString();
     }
     if (state === 'ready') {
       return '0.00';
@@ -227,10 +234,32 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     }
   }, []);
 
+  const updateInspectionTimer = useCallback(() => {
+    if (inspectionStartRef.current) {
+      const elapsed = Date.now() - inspectionStartRef.current;
+      const remaining = Math.max(0, 15 - Math.floor(elapsed / 1000));
+      setInspectionTime(remaining);
+      
+      if (remaining === 0) {
+        // Inspection time is up, automatically go to ready state
+        setState('ready');
+        inspectionStartRef.current = null;
+      }
+    }
+  }, []);
+
+  const startInspection = useCallback(() => {
+    setState('inspection');
+    inspectionStartRef.current = Date.now();
+    setInspectionTime(15);
+  }, []);
+
   const startTimer = useCallback(() => {
     setState('running');
     startTimeRef.current = Date.now();
     setTime(0);
+    // Clear inspection timer if it was running
+    inspectionStartRef.current = null;
   }, []);
 
   const stopTimer = useCallback(() => {
@@ -334,18 +363,21 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     setKeyDownTime(Date.now());
 
     if (state === 'idle') {
+      startInspection();
+    } else if (state === 'inspection') {
       setState('ready');
+      inspectionStartRef.current = null;
     } else if (state === 'stopped') {
-      // Reset to idle first, then to ready
+      // Reset to idle first, then start inspection
       setState('idle');
       setTime(0);
       startTimeRef.current = null;
-      // Set ready state after a brief delay to ensure state updates
-      setTimeout(() => setState('ready'), 0);
+      // Start inspection after a brief delay to ensure state updates
+      setTimeout(() => startInspection(), 0);
     } else if (state === 'running') {
       stopTimer();
     }
-  }, [state, isKeyDown, stopTimer, onBackToHome, showHistory, selectedSolve, solveHistory, updateLastSolveState, handleDeleteConfirmation]);
+  }, [state, isKeyDown, stopTimer, onBackToHome, showHistory, selectedSolve, solveHistory, updateLastSolveState, handleDeleteConfirmation, startInspection]);
 
   const handleKeyUp = useCallback((event: KeyboardEvent) => {
     if (event.code !== 'Space') return;
@@ -358,12 +390,12 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       if (holdTime >= 500) { // Only start if held for sufficient time
         startTimer();
       } else {
-        setState('idle'); // Go back to idle if not held long enough
+        startInspection(); // Go back to inspection if not held long enough
       }
     }
     
     setKeyDownTime(null);
-  }, [state, startTimer, keyDownTime]);
+  }, [state, startTimer, keyDownTime, startInspection]);
 
   useEffect(() => {
     let frameId: number;
@@ -371,6 +403,13 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     if (state === 'running' && startTimeRef.current) {
       const animate = () => {
         updateTimer();
+        frameId = requestAnimationFrame(animate);
+      };
+      frameId = requestAnimationFrame(animate);
+      animationRef.current = frameId;
+    } else if (state === 'inspection' && inspectionStartRef.current) {
+      const animate = () => {
+        updateInspectionTimer();
         frameId = requestAnimationFrame(animate);
       };
       frameId = requestAnimationFrame(animate);
@@ -385,7 +424,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
         cancelAnimationFrame(frameId);
       }
     };
-  }, [state, updateTimer]);
+  }, [state, updateTimer, updateInspectionTimer]);
 
   // Force re-renders while key is held to update color transitions
   useEffect(() => {
@@ -496,6 +535,38 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
         <div className="mb-2">
           {state === 'idle' && (
             <>
+              Press{' '}
+              <kbd 
+                className="px-2 py-1 rounded text-xs font-medium mx-1" 
+                style={{ 
+                  background: 'var(--gray-100)',
+                  borderColor: 'var(--border-medium)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Space
+              </kbd>{' '}
+              to start inspection
+            </>
+          )}
+          {state === 'inspection' && (
+            <>
+              Press{' '}
+              <kbd 
+                className="px-2 py-1 rounded text-xs font-medium mx-1" 
+                style={{ 
+                  background: 'var(--gray-100)',
+                  borderColor: 'var(--border-medium)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Space
+              </kbd>{' '}
+              when ready to solve
+            </>
+          )}
+          {state === 'ready' && (
+            <>
               Hold{' '}
               <kbd 
                 className="px-2 py-1 rounded text-xs font-medium mx-1" 
@@ -507,7 +578,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
               >
                 Space
               </kbd>{' '}
-              to get ready, release to start
+              and release to start
             </>
           )}
           {state === 'running' && (
