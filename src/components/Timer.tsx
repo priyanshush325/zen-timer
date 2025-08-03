@@ -11,6 +11,8 @@ interface SolveRecord {
   scramble: string;
   timestamp: number;
   state: SolveState;
+  ao5?: number | null; // null if DNF, undefined if not enough solves
+  ao12?: number | null; // null if DNF, undefined if not enough solves
 }
 
 interface TimerProps {
@@ -32,6 +34,77 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const [, forceUpdate] = useState({});
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
   const inspectionStartRef = useRef<number | null>(null);
+
+  // Cubing average calculation functions
+  const calculateAverage = (solves: SolveRecord[], count: number): number | null => {
+    if (solves.length < count) return null;
+    
+    const recentSolves = solves.slice(0, count);
+    
+    // Check if any solve is DNF - if so, average is DNF (return null for display purposes)
+    if (recentSolves.some(solve => solve.state === 'dnf')) {
+      return null;
+    }
+    
+    // Calculate actual times (add 2 seconds for +2 penalties)
+    const actualTimes = recentSolves.map(solve => 
+      solve.state === 'plus2' ? solve.time + 2000 : solve.time
+    );
+    
+    const sorted = [...actualTimes].sort((a, b) => a - b);
+    
+    // Remove fastest and slowest
+    const trimmed = sorted.slice(1, -1);
+    
+    // Calculate average of remaining times
+    const sum = trimmed.reduce((acc, time) => acc + time, 0);
+    return sum / trimmed.length;
+  };
+
+  const calculateBestWorstPossible = (solves: SolveRecord[], count: number): { best: number | null; worst: number | null } => {
+    if (solves.length < count) return { best: null, worst: null };
+    
+    const recentSolves = solves.slice(0, count);
+    
+    // If any solve is DNF, we can't calculate meaningful best/worst
+    if (recentSolves.some(solve => solve.state === 'dnf')) {
+      return { best: null, worst: null };
+    }
+    
+    // Calculate actual times (add 2 seconds for +2 penalties)
+    const actualTimes = recentSolves.map(solve => 
+      solve.state === 'plus2' ? solve.time + 2000 : solve.time
+    );
+    
+    const sorted = [...actualTimes].sort((a, b) => a - b);
+    
+    // Best possible: remove slowest time and second slowest
+    const bestTrimmed = sorted.slice(0, -2);
+    const best = bestTrimmed.reduce((acc, time) => acc + time, 0) / bestTrimmed.length;
+    
+    // Worst possible: remove fastest time and second fastest
+    const worstTrimmed = sorted.slice(2);
+    const worst = worstTrimmed.reduce((acc, time) => acc + time, 0) / worstTrimmed.length;
+    
+    return { best, worst };
+  };
+
+  // Calculate session mean (no trimming of best/worst)
+  const calculateSessionMean = (solves: SolveRecord[]): number | null => {
+    if (solves.length === 0) return null;
+    
+    // Filter out DNF solves
+    const validSolves = solves.filter(solve => solve.state !== 'dnf');
+    if (validSolves.length === 0) return null;
+    
+    // Calculate actual times (add 2 seconds for +2 penalties)
+    const actualTimes = validSolves.map(solve => 
+      solve.state === 'plus2' ? solve.time + 2000 : solve.time
+    );
+    
+    const sum = actualTimes.reduce((acc, time) => acc + time, 0);
+    return sum / actualTimes.length;
+  };
 
   // Determine if we should be in focused mode (fade out UI)
   const isFocused = isKeyDown || state === 'inspection' || state === 'running';
@@ -62,6 +135,23 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
               ...solve,
               state: 'ok' as SolveState
             }));
+            setSolveHistory(migrated);
+            // Save migrated data
+            localStorage.setItem('zen-timer-history', JSON.stringify(migrated));
+          } else if (parsed.length > 0 && parsed[0].ao5 === undefined) {
+            // SolveRecord format without ao5/ao12 - add average fields
+            const migrated: SolveRecord[] = parsed.map((solve: any, index: number) => {
+              // Calculate what the averages would have been at this point in history
+              const historyAtTime = parsed.slice(index);
+              const ao5 = calculateAverage(historyAtTime, 5);
+              const ao12 = calculateAverage(historyAtTime, 12);
+              
+              return {
+                ...solve,
+                ao5,
+                ao12
+              };
+            });
             setSolveHistory(migrated);
             // Save migrated data
             localStorage.setItem('zen-timer-history', JSON.stringify(migrated));
@@ -277,16 +367,32 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       // Get the current scramble from the scramble generator
       const currentScramble = scrambleRef.current?.getCurrentScramble?.() || 'Unknown scramble';
       
-      // Create new solve record
-      const newSolve: SolveRecord = {
-        id: `solve-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-        time: finalTime,
-        scramble: currentScramble,
-        timestamp: Date.now(),
-        state: 'ok'
-      };
-      
-      setSolveHistory(prev => [newSolve, ...prev.slice(0, 49)]); // Save to history
+      // Calculate averages for the new solve (based on previous solves + this one)
+      setSolveHistory(prev => {
+        const tempNewSolve: SolveRecord = {
+          id: `solve-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+          time: finalTime,
+          scramble: currentScramble,
+          timestamp: Date.now(),
+          state: 'ok'
+        };
+        
+        // Create updated history with the new solve
+        const updatedHistory = [tempNewSolve, ...prev.slice(0, 49)];
+        
+        // Calculate averages based on the updated history
+        const ao5 = calculateAverage(updatedHistory, 5);
+        const ao12 = calculateAverage(updatedHistory, 12);
+        
+        // Create final solve record with averages
+        const newSolve: SolveRecord = {
+          ...tempNewSolve,
+          ao5,
+          ao12
+        };
+        
+        return [newSolve, ...prev.slice(0, 49)];
+      });
       
       // Generate a new scramble after completing a solve
       if (scrambleRef.current) {
@@ -520,6 +626,68 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Average statistics */}
+        {solveHistory.length >= 5 && (
+          <div 
+            className="mt-8 transition-opacity duration-300"
+            style={{ opacity: isFocused ? 0 : 1 }}
+          >
+            <div className="flex flex-col items-center gap-2">
+              {/* Ao5 */}
+              {(() => {
+                const ao5 = calculateAverage(solveHistory, 5);
+                const { best: ao5Best, worst: ao5Worst } = calculateBestWorstPossible(solveHistory, 5);
+                
+                return ao5 ? (
+                  <div 
+                    className="text-sm font-mono font-semibold"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    Ao5: {formatTime(ao5)} <span className="text-xs font-normal">(
+                    <span style={{ color: '#16a34a' }}>{formatTime(ao5Best!)}</span>
+                    /
+                    <span style={{ color: '#dc2626' }}>{formatTime(ao5Worst!)}</span>
+                    )</span>
+                  </div>
+                ) : (
+                  <div 
+                    className="text-sm font-mono font-semibold"
+                    style={{ color: '#ef4444' }}
+                  >
+                    Ao5: DNF
+                  </div>
+                );
+              })()}
+              
+              {/* Ao12 */}
+              {solveHistory.length >= 12 && (() => {
+                const ao12 = calculateAverage(solveHistory, 12);
+                const { best: ao12Best, worst: ao12Worst } = calculateBestWorstPossible(solveHistory, 12);
+                
+                return ao12 ? (
+                  <div 
+                    className="text-sm font-mono font-semibold"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    Ao12: {formatTime(ao12)} <span className="text-xs font-normal">(
+                    <span style={{ color: '#16a34a' }}>{formatTime(ao12Best!)}</span>
+                    /
+                    <span style={{ color: '#dc2626' }}>{formatTime(ao12Worst!)}</span>
+                    )</span>
+                  </div>
+                ) : (
+                  <div 
+                    className="text-sm font-mono font-semibold"
+                    style={{ color: '#ef4444' }}
+                  >
+                    Ao12: DNF
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -760,6 +928,21 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
 
             <div className="flex-1 flex flex-col min-h-0">
               <div className="px-6 py-3 bg-white bg-opacity-30">
+                {/* Session Mean */}
+                {solveHistory.length > 0 && (
+                  <div className="mb-3 pb-3 border-b border-black border-opacity-5">
+                    <div className="text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                      Session Mean
+                    </div>
+                    <div className="font-mono text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {(() => {
+                        const sessionMean = calculateSessionMean(solveHistory);
+                        return sessionMean ? formatTime(sessionMean) : 'DNF';
+                      })()}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                     Times ({solveHistory.length})
@@ -869,6 +1052,26 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                           >
                             {new Date(solve.timestamp).toLocaleString()}
                           </div>
+                          
+                          {/* Display averages if available */}
+                          {(solve.ao5 !== undefined || solve.ao12 !== undefined) && (
+                            <div className="flex gap-4 mt-2 text-xs font-mono">
+                              {solve.ao5 !== undefined && (
+                                <div style={{ color: 'var(--text-secondary)' }}>
+                                  Ao5: <span style={{ color: solve.ao5 === null ? '#ef4444' : 'var(--text-primary)' }}>
+                                    {solve.ao5 === null ? 'DNF' : formatTime(solve.ao5)}
+                                  </span>
+                                </div>
+                              )}
+                              {solve.ao12 !== undefined && (
+                                <div style={{ color: 'var(--text-secondary)' }}>
+                                  Ao12: <span style={{ color: solve.ao12 === null ? '#ef4444' : 'var(--text-primary)' }}>
+                                    {solve.ao12 === null ? 'DNF' : formatTime(solve.ao12)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
