@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScrambleGenerator, { ScrambleGeneratorRef } from './ScrambleGenerator';
+import MediaWidget from './MediaWidget';
 
 type TimerState = 'idle' | 'inspection' | 'ready' | 'running' | 'stopped';
 type SolveState = 'ok' | 'plus2' | 'dnf';
@@ -1087,6 +1088,9 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
           }
         `
       }} />
+
+      {/* Media Widget */}
+      <MediaWidget isFocused={isFocused} />
     </div>
   );
 };
