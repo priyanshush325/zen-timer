@@ -8,6 +8,7 @@ export interface ScrambleGeneratorRef {
   newScramble: () => void;
   previousScramble: () => void;
   nextScramble: () => void;
+  getCurrentScramble: () => string;
 }
 
 const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProps>(({ onNewScramble }, ref) => {
@@ -107,10 +108,13 @@ const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProp
     }
   };
 
+  const getCurrentScramble = () => scramble;
+
   useImperativeHandle(ref, () => ({
     newScramble,
     previousScramble,
-    nextScramble
+    nextScramble,
+    getCurrentScramble
   }));
 
   useEffect(() => {
