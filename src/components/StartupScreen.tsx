@@ -1,20 +1,19 @@
 import React from 'react';
-import SimpleIcon from './GeometricPattern';
 
-const StartupScreen: React.FC = () => {
+interface StartupScreenProps {
+  onGetStarted: () => void;
+}
+
+const StartupScreen: React.FC<StartupScreenProps> = ({ onGetStarted }) => {
   const handleGetStarted = () => {
-    console.log('Get Started clicked!');
-    // TODO: Navigate to timer view
+    onGetStarted();
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative px-8">
-      {/* Main Content */}
       <div className="text-center max-w-2xl mx-auto">
-        {/* Hero Content */}
         <div className="animate-slide-up mb-16" style={{ animationDelay: '0.1s' }}>
           <div className="mb-12">
-            {/* Title with Inline Icon */}
             <div className="flex items-center justify-center gap-6 mb-8">
               <div 
                 className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
