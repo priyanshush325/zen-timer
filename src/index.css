@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Opinionated Color Palette */
+    --background: #fdfcfb;
+    --surface: #ffffff;
+    --surface-elevated: #ffffff;
+    
+    /* Rich Text Colors */
+    --text-primary: #0d0d0d;
+    --text-secondary: #4a5568;
+    --text-tertiary: #718096;
+    --text-accent: #2d3748;
+    
+    /* Distinctive Accent System */
+    --accent-primary: #e53e3e;
+    --accent-primary-hover: #c53030;
+    --accent-secondary: #3182ce;
+    --accent-warm: #ed8936;
+    --accent-cool: #38b2ac;
+    --accent-soft: #feb2b2;
+    
+    /* Sophisticated Neutrals */
+    --gray-50: #f7fafc;
+    --gray-100: #edf2f7;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e0;
+    --gray-400: #a0aec0;
+    --gray-500: #718096;
+    --gray-600: #4a5568;
+    --gray-700: #2d3748;
+    --gray-800: #1a202c;
+    
+    /* Borders & Dividers */
+    --border-light: #e2e8f0;
+    --border-medium: #cbd5e0;
+    --border-accent: #feb2b2;
+    
+    /* Enhanced Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+    --shadow-accent: 0 4px 12px rgba(229, 62, 62, 0.15);
+    
+    /* Typography */
+    --font-display: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-body: 'Space Grotesk', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background: var(--background);
+    color: var(--text-primary);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@keyframes slide-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(24px); 
+    filter: blur(1px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+    filter: blur(0px);
+  }
+}
+
+@keyframes spin-slow {
+  from { transform: rotateX(-15deg) rotateY(0deg); }
+  to { transform: rotateX(-15deg) rotateY(360deg); }
+}
+
+@keyframes button-press {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+.animate-slide-up {
+  opacity: 0;
+  animation: slide-up 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-button-press {
+  animation: button-press 0.15s ease-out;
+}
+
+/* Distinctive Cube Icon */
+.cube-container {
+  perspective: 1000px;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.cube-container::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+  z-index: -1;
+}
+
+.cube {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  transform-style: preserve-3d;
+}
+
+.face {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+}
+
+.front  { 
+  transform: rotateY(0deg) translateZ(40px); 
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
+}
+.back   { 
+  transform: rotateY(180deg) translateZ(40px); 
+  background: linear-gradient(135deg, var(--accent-secondary) 0%, #2c5aa0 100%);
+}
+.right  { 
+  transform: rotateY(90deg) translateZ(40px); 
+  background: linear-gradient(135deg, var(--accent-warm) 0%, #e07711 100%);
+}
+.left   { 
+  transform: rotateY(-90deg) translateZ(40px); 
+  background: linear-gradient(135deg, var(--accent-cool) 0%, #319795 100%);
+}
+.top    { 
+  transform: rotateX(90deg) translateZ(40px); 
+  background: linear-gradient(135deg, var(--gray-100) 0%, var(--surface) 100%);
+}
+.bottom { 
+  transform: rotateX(-90deg) translateZ(40px); 
+  background: linear-gradient(135deg, var(--gray-200) 0%, var(--gray-100) 100%);
+}
