@@ -31,10 +31,12 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const [deleteConfirmationActive, setDeleteConfirmationActive] = useState(false);
   const [toastFadingOut, setToastFadingOut] = useState(false);
   const [inspectionTime, setInspectionTime] = useState(15);
+  const [inspectionOvertime, setInspectionOvertime] = useState(0);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [, forceUpdate] = useState({});
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
   const inspectionStartRef = useRef<number | null>(null);
+  const inspectionOvertimeRef = useRef<number>(0);
 
   // Cubing average calculation functions
   const calculateAverage = (solves: SolveRecord[], count: number): number | null => {
@@ -318,7 +320,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   };
 
   const getDisplayColor = (): string => {
-    if (isKeyDown && keyDownTime) {
+    if (isKeyDown && keyDownTime && state === 'inspection') {
       const holdTime = Date.now() - keyDownTime;
       if (holdTime >= 500) { // Green after 500ms
         return '#22c55e'; // Green
@@ -329,7 +331,14 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     
     switch (state) {
       case 'inspection':
-        return inspectionTime <= 3 ? '#ef4444' : '#f59e0b'; // Red if 3 or less, orange otherwise
+        if (inspectionOvertime > 2) {
+          return '#dc2626'; // Dark red for DNF territory
+        } else if (inspectionOvertime > 0) {
+          return '#f59e0b'; // Orange for +2 territory
+        } else if (inspectionTime <= 3) {
+          return '#ef4444'; // Red when almost expired
+        }
+        return '#f59e0b'; // Orange during normal inspection
       case 'running':
         return themeVars['--text-primary']; // Use theme-aware color
       case 'stopped':
@@ -344,6 +353,9 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       return '0.00';
     }
     if (state === 'inspection') {
+      if (inspectionOvertime > 0) {
+        return `+${inspectionOvertime.toFixed(1)}`;
+      }
       return inspectionTime.toString();
     }
     if (state === 'ready') {
@@ -362,13 +374,16 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const updateInspectionTimer = useCallback(() => {
     if (inspectionStartRef.current) {
       const elapsed = Date.now() - inspectionStartRef.current;
-      const remaining = Math.max(0, 15 - Math.floor(elapsed / 1000));
-      setInspectionTime(remaining);
+      const elapsedSeconds = elapsed / 1000;
       
-      if (remaining === 0) {
-        // Inspection time is up, automatically go to ready state
-        setState('ready');
-        inspectionStartRef.current = null;
+      if (elapsedSeconds <= 15) {
+        const remaining = Math.max(0, 15 - Math.floor(elapsedSeconds));
+        setInspectionTime(remaining);
+        setInspectionOvertime(0);
+      } else {
+        // Over inspection time - show overtime
+        setInspectionTime(0);
+        setInspectionOvertime(elapsedSeconds - 15);
       }
     }
   }, []);
@@ -377,14 +392,18 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     setState('inspection');
     inspectionStartRef.current = Date.now();
     setInspectionTime(15);
+    setInspectionOvertime(0);
   }, []);
 
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback((inspectionOvertime: number = 0) => {
     setState('running');
     startTimeRef.current = Date.now();
     setTime(0);
     // Clear inspection timer if it was running
     inspectionStartRef.current = null;
+    
+    // Store inspection overtime in a ref for penalty calculation later
+    inspectionOvertimeRef.current = inspectionOvertime;
   }, []);
 
   const stopTimer = useCallback(() => {
@@ -403,12 +422,24 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       
       // Calculate averages for the new solve (based on previous solves + this one)
       setSolveHistory(prev => {
+        // Determine solve state based on inspection overtime
+        let solveState: SolveState = 'ok';
+        const overtime = inspectionOvertimeRef.current;
+        if (overtime > 2) {
+          solveState = 'dnf';
+        } else if (overtime > 0) {
+          solveState = 'plus2';
+        }
+        
+        // Reset inspection overtime for next solve
+        inspectionOvertimeRef.current = 0;
+        
         const tempNewSolve: SolveRecord = {
           id: `solve-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           time: finalTime,
           scramble: currentScramble,
           timestamp: Date.now(),
-          state: 'ok'
+          state: solveState
         };
         
         // Create updated history with the new solve
@@ -506,8 +537,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     if (state === 'idle') {
       startInspection();
     } else if (state === 'inspection') {
-      setState('ready');
-      inspectionStartRef.current = null;
+      // Don't change state during inspection - just track key press
     } else if (state === 'stopped') {
       // Reset to idle first, then start inspection
       setState('idle');
@@ -526,17 +556,19 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
 
     setIsKeyDown(false);
     
-    if (state === 'ready' && keyDownTime) {
+    if (state === 'inspection' && keyDownTime && inspectionStartRef.current) {
       const holdTime = Date.now() - keyDownTime;
       if (holdTime >= 500) { // Only start if held for sufficient time
-        startTimer();
-      } else {
-        startInspection(); // Go back to inspection if not held long enough
+        // Calculate total inspection time used
+        const totalInspectionTime = (Date.now() - inspectionStartRef.current) / 1000;
+        const overtime = Math.max(0, totalInspectionTime - 15);
+        startTimer(overtime);
       }
+      // If not held long enough, continue inspection (no reset)
     }
     
     setKeyDownTime(null);
-  }, [state, startTimer, keyDownTime, startInspection]);
+  }, [state, startTimer, keyDownTime, inspectionStartRef]);
 
   useEffect(() => {
     let frameId: number;
