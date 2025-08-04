@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScrambleGenerator, { ScrambleGeneratorRef } from './ScrambleGenerator';
 import MediaWidget from './MediaWidget';
+import Settings, { SettingsData } from './Settings';
 
 type TimerState = 'idle' | 'inspection' | 'ready' | 'running' | 'stopped';
 type SolveState = 'ok' | 'plus2' | 'dnf';
@@ -24,6 +25,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const [time, setTime] = useState(0);
   const [isKeyDown, setIsKeyDown] = useState(false);
   const [keyDownTime, setKeyDownTime] = useState<number | null>(null);
+  const [keyDownStartState, setKeyDownStartState] = useState<TimerState | null>(null);
   const [solveHistory, setSolveHistory] = useState<SolveRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedSolve, setSelectedSolve] = useState<SolveRecord | null>(null);
@@ -33,6 +35,11 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const [inspectionTime, setInspectionTime] = useState(15);
   const [inspectionOvertime, setInspectionOvertime] = useState(0);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<SettingsData>({
+    holdDuration: 500,
+    useInspection: true
+  });
   const [, forceUpdate] = useState({});
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
   const inspectionStartRef = useRef<number | null>(null);
@@ -117,11 +124,21 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     localStorage.setItem('zen-timer-theme', newTheme);
   };
 
-  // Load theme from localStorage on mount
+  // Load theme and settings from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('zen-timer-theme') as 'light' | 'dark' | null;
     if (savedTheme) {
       setTheme(savedTheme);
+    }
+    
+    const savedSettings = localStorage.getItem('zen-timer-settings');
+    if (savedSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(parsedSettings);
+      } catch (error) {
+        console.error('Failed to parse saved settings:', error);
+      }
     }
   }, []);
 
@@ -140,6 +157,12 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     '--hover-bg-strong': theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)',
     '--shadow-light': theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.3)',
     '--shadow-strong': theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0.5)'
+  };
+
+  // Settings change handler
+  const handleSettingsChange = (newSettings: SettingsData) => {
+    setSettings(newSettings);
+    localStorage.setItem('zen-timer-settings', JSON.stringify(newSettings));
   };
 
   // Determine if we should be in focused mode (fade out UI)
@@ -320,13 +343,32 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   };
 
   const getDisplayColor = (): string => {
-    if (isKeyDown && keyDownTime && state === 'inspection') {
-      const holdTime = Date.now() - keyDownTime;
-      if (holdTime >= 500) { // Green after 500ms
-        return '#22c55e'; // Green
-      } else {
-        return '#ef4444'; // Red
+    // Only show hold duration colors when actually able to start timer
+    if (isKeyDown && keyDownTime) {
+      if (state === 'inspection') {
+        // In inspection state - show hold duration feedback
+        if (settings.holdDuration === 0) {
+          return '#22c55e'; // Immediately green for 0ms
+        }
+        const holdTime = Date.now() - keyDownTime;
+        if (holdTime >= settings.holdDuration) {
+          return '#22c55e'; // Green
+        } else {
+          return '#ef4444'; // Red
+        }
+      } else if (state === 'idle' && !settings.useInspection) {
+        // In idle state with no inspection - show hold duration feedback
+        if (settings.holdDuration === 0) {
+          return '#22c55e'; // Immediately green for 0ms
+        }
+        const holdTime = Date.now() - keyDownTime;
+        if (holdTime >= settings.holdDuration) {
+          return '#22c55e'; // Green
+        } else {
+          return '#ef4444'; // Red
+        }
       }
+      // If in idle state with inspection enabled, don't show hold colors (just starting inspection)
     }
     
     switch (state) {
@@ -474,6 +516,8 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       event.preventDefault();
       if (selectedSolve) {
         setSelectedSolve(null);
+      } else if (showSettings) {
+        setShowSettings(false);
       } else if (showHistory) {
         setShowHistory(false);
       } else {
@@ -485,6 +529,12 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     if (event.code === 'KeyH' && !isKeyDown && state !== 'running') {
       event.preventDefault();
       setShowHistory(!showHistory);
+      return;
+    }
+
+    if (event.code === 'KeyS' && !isKeyDown && state !== 'running') {
+      event.preventDefault();
+      setShowSettings(!showSettings);
       return;
     }
 
@@ -533,22 +583,29 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     if (isKeyDown) return;
     setIsKeyDown(true);
     setKeyDownTime(Date.now());
+    setKeyDownStartState(state); // Remember what state we were in when key was pressed
 
     if (state === 'idle') {
-      startInspection();
+      if (settings.useInspection) {
+        startInspection();
+      } else {
+        // Skip inspection, go directly to timer hold
+      }
     } else if (state === 'inspection') {
       // Don't change state during inspection - just track key press
     } else if (state === 'stopped') {
-      // Reset to idle first, then start inspection
+      // Reset to idle first, then start inspection if enabled
       setState('idle');
       setTime(0);
       startTimeRef.current = null;
       // Start inspection after a brief delay to ensure state updates
-      setTimeout(() => startInspection(), 0);
+      if (settings.useInspection) {
+        setTimeout(() => startInspection(), 0);
+      }
     } else if (state === 'running') {
       stopTimer();
     }
-  }, [state, isKeyDown, stopTimer, onBackToHome, showHistory, selectedSolve, solveHistory, updateLastSolveState, handleDeleteConfirmation, startInspection]);
+  }, [state, isKeyDown, stopTimer, onBackToHome, showHistory, selectedSolve, solveHistory, updateLastSolveState, handleDeleteConfirmation, startInspection, settings.useInspection]);
 
   const handleKeyUp = useCallback((event: KeyboardEvent) => {
     if (event.code !== 'Space') return;
@@ -557,18 +614,30 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     setIsKeyDown(false);
     
     if (state === 'inspection' && keyDownTime && inspectionStartRef.current) {
-      const holdTime = Date.now() - keyDownTime;
-      if (holdTime >= 500) { // Only start if held for sufficient time
-        // Calculate total inspection time used
-        const totalInspectionTime = (Date.now() - inspectionStartRef.current) / 1000;
-        const overtime = Math.max(0, totalInspectionTime - 15);
-        startTimer(overtime);
+      // Only allow timer start if the keypress started from inspection state (not from idle)
+      if (keyDownStartState === 'inspection') {
+        const holdTime = Date.now() - keyDownTime;
+        if (holdTime >= settings.holdDuration || settings.holdDuration === 0) {
+          // Calculate total inspection time used
+          const totalInspectionTime = (Date.now() - inspectionStartRef.current) / 1000;
+          const overtime = Math.max(0, totalInspectionTime - 15);
+          startTimer(overtime);
+        }
+        // If not held long enough, continue inspection (no reset)
       }
-      // If not held long enough, continue inspection (no reset)
+      // If keypress started from idle, do nothing (just started inspection)
+    } else if (state === 'idle' && !settings.useInspection && keyDownTime) {
+      // Only start timer from idle if inspection is disabled
+      const holdTime = Date.now() - keyDownTime;
+      if (holdTime >= settings.holdDuration || settings.holdDuration === 0) {
+        startTimer(0); // No inspection time, no overtime
+      }
     }
+    // Note: If inspection is enabled, timer can ONLY start from inspection state, never from idle
     
     setKeyDownTime(null);
-  }, [state, startTimer, keyDownTime, inspectionStartRef]);
+    setKeyDownStartState(null); // Reset the start state tracking
+  }, [state, startTimer, keyDownTime, inspectionStartRef, settings.holdDuration, settings.useInspection]);
 
   useEffect(() => {
     let frameId: number;
@@ -639,25 +708,50 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
         background: 'var(--bg-primary)'
       } as React.CSSProperties}
     >
-      {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer z-50"
-        style={{
-          background: theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
-          border: `1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)'}`,
-          color: theme === 'light' ? '#666666' : '#a3a3a3',
-          opacity: isFocused ? 0 : 1
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
-          e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)';
-          e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
-        }}
-      >
+      {/* Top right controls */}
+      <div className="absolute top-6 right-6 flex gap-2 z-50" style={{ opacity: isFocused ? 0 : 1 }}>
+        {/* Settings button */}
+        <button
+          onClick={() => setShowSettings(true)}
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer"
+          style={{
+            background: theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
+            border: `1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)'}`,
+            color: theme === 'light' ? '#666666' : '#a3a3a3'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+            e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)';
+            e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+          }}
+        >
+          {/* Gear icon */}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+          </svg>
+        </button>
+        
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer"
+          style={{
+            background: theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
+            border: `1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)'}`,
+            color: theme === 'light' ? '#666666' : '#a3a3a3'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+            e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)';
+            e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+          }}
+        >
         {theme === 'light' ? (
           // Moon icon for switching to dark mode
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -677,7 +771,8 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
             <path d="m19.07 4.93-1.41 1.41"/>
           </svg>
         )}
-      </button>
+        </button>
+      </div>
 
       {/* Scramble display */}
       <div 
@@ -827,7 +922,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
               >
                 Space
               </kbd>{' '}
-              to start inspection
+              to {settings.useInspection ? 'start inspection' : settings.holdDuration === 0 ? 'start timer' : `hold for ${settings.holdDuration}ms to start`}
             </>
           )}
           {state === 'inspection' && (
@@ -846,7 +941,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
               when ready to solve
             </>
           )}
-          {state === 'ready' && (
+          {state === 'inspection' && (
             <>
               Hold{' '}
               <kbd 
@@ -859,7 +954,23 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
               >
                 Space
               </kbd>{' '}
-              and release to start
+              {settings.holdDuration === 0 ? 'to start' : `for ${settings.holdDuration}ms to start`}
+            </>
+          )}
+          {state === 'idle' && !settings.useInspection && (
+            <>
+              Hold{' '}
+              <kbd 
+                className="px-2 py-1 rounded text-xs font-medium mx-1" 
+                style={{ 
+                  background: 'var(--gray-100)',
+                  borderColor: 'var(--border-medium)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Space
+              </kbd>{' '}
+              {settings.holdDuration === 0 ? 'to start' : `for ${settings.holdDuration}ms to start`}
             </>
           )}
           {state === 'running' && (
@@ -933,6 +1044,20 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
               H
             </kbd>{' '}
             for history
+          </div>
+          <div>
+            Press{' '}
+            <kbd 
+              className="px-2 py-1 rounded text-xs font-medium mx-1" 
+              style={{ 
+                background: 'var(--gray-100)',
+                borderColor: 'var(--border-medium)',
+                color: 'var(--text-primary)'
+              }}
+            >
+              S
+            </kbd>{' '}
+            for settings
           </div>
           <div>
             Press{' '}
@@ -1408,6 +1533,17 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
           }
         `
       }} />
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <Settings
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
+          onClose={() => setShowSettings(false)}
+          theme={theme}
+          isFocused={isFocused}
+        />
+      )}
 
       {/* Media Widget */}
       <MediaWidget isFocused={isFocused} theme={theme} />
