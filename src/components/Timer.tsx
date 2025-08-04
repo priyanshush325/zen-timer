@@ -14,6 +14,7 @@ interface SolveRecord {
   state: SolveState;
   ao5?: number | null; // null if DNF, undefined if not enough solves
   ao12?: number | null; // null if DNF, undefined if not enough solves
+  inspectionTime?: number; // time used for inspection in seconds, undefined if no inspection
 }
 
 interface TimerProps {
@@ -44,6 +45,8 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
   const inspectionStartRef = useRef<number | null>(null);
   const inspectionOvertimeRef = useRef<number>(0);
+  const inspectionTimeUsedRef = useRef<number | undefined>(undefined);
+  const timerStoppedRef = useRef<boolean>(false);
 
   // Cubing average calculation functions
   const calculateAverage = (solves: SolveRecord[], count: number): number | null => {
@@ -437,61 +440,63 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     setInspectionOvertime(0);
   }, []);
 
-  const startTimer = useCallback((inspectionOvertime: number = 0) => {
+  const startTimer = useCallback((inspectionOvertime: number = 0, totalInspectionTime?: number) => {
     setState('running');
     startTimeRef.current = Date.now();
     setTime(0);
-    // Clear inspection timer if it was running
-    inspectionStartRef.current = null;
     
-    // Store inspection overtime in a ref for penalty calculation later
+    timerStoppedRef.current = false;
+    
     inspectionOvertimeRef.current = inspectionOvertime;
+    
+    inspectionTimeUsedRef.current = totalInspectionTime;
+    inspectionStartRef.current = null;
   }, []);
 
   const stopTimer = useCallback(() => {
+    if (timerStoppedRef.current) {
+      return;
+    }
+    
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
     
     // Calculate the final time when stopping
-    if (startTimeRef.current) {
+    if (startTimeRef.current && state === 'running') {
+      timerStoppedRef.current = true; // Mark as processed
       const finalTime = Date.now() - startTimeRef.current;
       setTime(finalTime); // Update the display
       
-      // Get the current scramble from the scramble generator
       const currentScramble = scrambleRef.current?.getCurrentScramble?.() || 'Unknown scramble';
       
-      // Calculate averages for the new solve (based on previous solves + this one)
+      let solveState: SolveState = 'ok';
+      const overtime = inspectionOvertimeRef.current;
+      if (overtime > 2) {
+        solveState = 'dnf';
+      } else if (overtime > 0) {
+        solveState = 'plus2';
+      }
+      
+      const inspectionTimeUsed = inspectionTimeUsedRef.current;
+      
+      inspectionOvertimeRef.current = 0;
+      inspectionTimeUsedRef.current = undefined;
       setSolveHistory(prev => {
-        // Determine solve state based on inspection overtime
-        let solveState: SolveState = 'ok';
-        const overtime = inspectionOvertimeRef.current;
-        if (overtime > 2) {
-          solveState = 'dnf';
-        } else if (overtime > 0) {
-          solveState = 'plus2';
-        }
-        
-        // Reset inspection overtime for next solve
-        inspectionOvertimeRef.current = 0;
         
         const tempNewSolve: SolveRecord = {
           id: `solve-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           time: finalTime,
           scramble: currentScramble,
           timestamp: Date.now(),
-          state: solveState
+          state: solveState,
+          inspectionTime: inspectionTimeUsed
         };
         
-        // Create updated history with the new solve
         const updatedHistory = [tempNewSolve, ...prev.slice(0, 49)];
-        
-        // Calculate averages based on the updated history
         const ao5 = calculateAverage(updatedHistory, 5);
         const ao12 = calculateAverage(updatedHistory, 12);
-        
-        // Create final solve record with averages
         const newSolve: SolveRecord = {
           ...tempNewSolve,
           ao5,
@@ -505,10 +510,12 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       if (scrambleRef.current) {
         scrambleRef.current.newScramble();
       }
+      setState('stopped');
+    } else {
+      // If no startTimeRef but we're stopping, still set state
+      setState('stopped');
     }
-    
-    setState('stopped');
-  }, []);
+  }, [state]);
 
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -598,9 +605,9 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       setState('idle');
       setTime(0);
       startTimeRef.current = null;
-      // Start inspection after a brief delay to ensure state updates
+      // Start inspection immediately if enabled
       if (settings.useInspection) {
-        setTimeout(() => startInspection(), 0);
+        startInspection();
       }
     } else if (state === 'running') {
       stopTimer();
@@ -621,7 +628,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
           // Calculate total inspection time used
           const totalInspectionTime = (Date.now() - inspectionStartRef.current) / 1000;
           const overtime = Math.max(0, totalInspectionTime - 15);
-          startTimer(overtime);
+          startTimer(overtime, totalInspectionTime);
         }
         // If not held long enough, continue inspection (no reset)
       }
@@ -630,7 +637,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       // Only start timer from idle if inspection is disabled
       const holdTime = Date.now() - keyDownTime;
       if (holdTime >= settings.holdDuration || settings.holdDuration === 0) {
-        startTimer(0); // No inspection time, no overtime
+        startTimer(0, undefined); // No inspection time, no overtime
       }
     }
     // Note: If inspection is enabled, timer can ONLY start from inspection state, never from idle
@@ -1435,11 +1442,17 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                   </div>
 
                   <div 
-                    className="p-3 rounded-lg"
+                    className="p-3 rounded-lg space-y-2"
                     style={{ background: 'var(--hover-bg)' }}
                   >
                     <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                       Raw Time: {formatTime(currentSolve.time)}
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                      Inspection: {currentSolve.inspectionTime !== undefined 
+                        ? `${currentSolve.inspectionTime.toFixed(1)}s` 
+                        : 'Not tracked'
+                      }
                     </div>
                   </div>
 
