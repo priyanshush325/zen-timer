@@ -12,6 +12,7 @@ interface MediaInfo {
 
 interface MediaWidgetProps {
   isFocused: boolean;
+  theme: 'light' | 'dark';
 }
 
 // Declare the Electron API that we'll add to the main process
@@ -29,9 +30,18 @@ declare global {
   }
 }
 
-const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused }) => {
+const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused, theme }) => {
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null);
   const [isElectron, setIsElectron] = useState(false);
+
+  // Theme variables for MediaWidget
+  const bgColor = theme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(31, 31, 31, 0.95)';
+  const borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+  const textPrimary = theme === 'light' ? '#000000' : '#ffffff';
+  const textSecondary = theme === 'light' ? '#666666' : '#a3a3a3';
+  const buttonBg = theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)';
+  const buttonBgHover = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+  const buttonBorder = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
 
   useEffect(() => {
     // Check if we're running in Electron
@@ -140,10 +150,10 @@ const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused }) => {
       <div 
         className="rounded-xl border p-4 w-80"
         style={{
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: bgColor,
           backdropFilter: 'blur(12px)',
-          borderColor: 'rgba(0, 0, 0, 0.06)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+          borderColor: borderColor,
+          boxShadow: theme === 'light' ? '0 4px 20px rgba(0, 0, 0, 0.08)' : '0 4px 20px rgba(0, 0, 0, 0.3)'
         }}
       >
         {/* Track info section */}
@@ -162,14 +172,14 @@ const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused }) => {
           <div className="flex-1 min-w-0">
             <div 
               className="font-medium text-sm truncate"
-              style={{ color: 'var(--text-primary)' }}
+              style={{ color: textPrimary }}
             >
               {mediaInfo.title}
             </div>
             {mediaInfo.artist && (
               <div 
                 className="text-xs truncate mt-0.5"
-                style={{ color: 'var(--text-secondary)' }}
+                style={{ color: textSecondary }}
               >
                 {mediaInfo.artist}
               </div>
@@ -194,15 +204,15 @@ const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused }) => {
             onClick={handlePrevious}
             className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
             style={{
-              background: 'rgba(0, 0, 0, 0.03)',
-              color: 'var(--text-secondary)',
-              border: '1px solid rgba(0, 0, 0, 0.06)'
+              background: buttonBg,
+              color: textSecondary,
+              border: `1px solid ${buttonBorder}`
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.06)';
+              e.currentTarget.style.background = buttonBgHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
+              e.currentTarget.style.background = buttonBg;
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -214,15 +224,15 @@ const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused }) => {
             onClick={handlePlayPause}
             className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
             style={{
-              background: 'rgba(0, 0, 0, 0.03)',
-              color: 'var(--text-secondary)',
-              border: '1px solid rgba(0, 0, 0, 0.06)'
+              background: buttonBg,
+              color: textSecondary,
+              border: `1px solid ${buttonBorder}`
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.06)';
+              e.currentTarget.style.background = buttonBgHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
+              e.currentTarget.style.background = buttonBg;
             }}
           >
             {mediaInfo.isPlaying ? (
@@ -240,15 +250,15 @@ const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused }) => {
             onClick={handleNext}
             className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
             style={{
-              background: 'rgba(0, 0, 0, 0.03)',
-              color: 'var(--text-secondary)',
-              border: '1px solid rgba(0, 0, 0, 0.06)'
+              background: buttonBg,
+              color: textSecondary,
+              border: `1px solid ${buttonBorder}`
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.06)';
+              e.currentTarget.style.background = buttonBgHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
+              e.currentTarget.style.background = buttonBg;
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">

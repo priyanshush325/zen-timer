@@ -31,6 +31,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
   const [deleteConfirmationActive, setDeleteConfirmationActive] = useState(false);
   const [toastFadingOut, setToastFadingOut] = useState(false);
   const [inspectionTime, setInspectionTime] = useState(15);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [, forceUpdate] = useState({});
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
   const inspectionStartRef = useRef<number | null>(null);
@@ -104,6 +105,39 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     
     const sum = actualTimes.reduce((acc, time) => acc + time, 0);
     return sum / actualTimes.length;
+  };
+
+  // Theme management
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    console.log('Toggling theme from', theme, 'to', newTheme);
+    setTheme(newTheme);
+    localStorage.setItem('zen-timer-theme', newTheme);
+  };
+
+  // Load theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('zen-timer-theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  // Theme CSS variables
+  const themeVars = {
+    '--bg-primary': theme === 'light' ? '#ffffff' : '#0f0f0f',
+    '--bg-secondary': theme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 15, 15, 0.95)',
+    '--bg-tertiary': theme === 'light' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(31, 31, 31, 0.8)',
+    '--text-primary': theme === 'light' ? '#000000' : '#ffffff',
+    '--text-secondary': theme === 'light' ? '#666666' : '#a3a3a3',
+    '--text-tertiary': theme === 'light' ? '#999999' : '#737373',
+    '--border-light': theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)',
+    '--border-medium': theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+    '--gray-100': theme === 'light' ? '#f5f5f5' : '#262626',
+    '--hover-bg': theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
+    '--hover-bg-strong': theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)',
+    '--shadow-light': theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.3)',
+    '--shadow-strong': theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(0, 0, 0, 0.5)'
   };
 
   // Determine if we should be in focused mode (fade out UI)
@@ -297,11 +331,11 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       case 'inspection':
         return inspectionTime <= 3 ? '#ef4444' : '#f59e0b'; // Red if 3 or less, orange otherwise
       case 'running':
-        return '#000000'; // Black
+        return themeVars['--text-primary']; // Use theme-aware color
       case 'stopped':
-        return '#000000'; // Black (neutral after solve)
+        return themeVars['--text-primary']; // Use theme-aware color
       default:
-        return '#000000'; // Black (neutral)
+        return themeVars['--text-primary']; // Use theme-aware color
     }
   };
 
@@ -566,7 +600,53 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
 
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative px-8">
+    <div 
+      className="min-h-screen flex flex-col items-center justify-center relative px-8 transition-colors duration-300"
+      style={{
+        ...themeVars,
+        background: 'var(--bg-primary)'
+      } as React.CSSProperties}
+    >
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer z-50"
+        style={{
+          background: theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)',
+          border: `1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)'}`,
+          color: theme === 'light' ? '#666666' : '#a3a3a3',
+          opacity: isFocused ? 0 : 1
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+          e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = theme === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.03)';
+          e.currentTarget.style.borderColor = theme === 'light' ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)';
+        }}
+      >
+        {theme === 'light' ? (
+          // Moon icon for switching to dark mode
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21.64 13a1 1 0 0 0-1.05-.14 8.05 8.05 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05z"/>
+          </svg>
+        ) : (
+          // Sun icon for switching to light mode  
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="m12 2v2"/>
+            <path d="m12 20v2"/>
+            <path d="m4.93 4.93 1.41 1.41"/>
+            <path d="m17.66 17.66 1.41 1.41"/>
+            <path d="m2 12h2"/>
+            <path d="m20 12h2"/>
+            <path d="m6.34 17.66-1.41 1.41"/>
+            <path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+        )}
+      </button>
+
       {/* Scramble display */}
       <div 
         className="absolute top-8 left-8 right-8 transition-opacity duration-300"
@@ -616,7 +696,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                     }}
                     onClick={() => setSelectedSolve(solve)}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)';
+                      e.currentTarget.style.background = 'var(--hover-bg-strong)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = 'transparent';
@@ -897,12 +977,12 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
           <div 
             className="h-full rounded-xl backdrop-blur-sm border flex flex-col overflow-hidden"
             style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              borderColor: 'rgba(0, 0, 0, 0.08)',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04)'
+              background: 'var(--bg-secondary)',
+              borderColor: 'var(--border-medium)',
+              boxShadow: theme === 'light' ? '0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04)' : '0 20px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2)'
             }}
           >
-            <div className="px-6 py-4 bg-white bg-opacity-50">
+            <div className="px-6 py-4" style={{ background: 'var(--bg-tertiary)' }}>
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-medium tracking-wide uppercase" style={{ color: 'var(--text-tertiary)' }}>
                   History
@@ -911,14 +991,14 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                   onClick={() => setShowHistory(false)}
                   className="w-6 h-6 rounded-full flex items-center justify-center text-xs transition-colors"
                   style={{ 
-                    background: 'rgba(0, 0, 0, 0.04)', 
+                    background: 'var(--hover-bg)', 
                     color: 'var(--text-secondary)'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(0, 0, 0, 0.08)';
+                    e.currentTarget.style.background = 'var(--hover-bg-strong)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(0, 0, 0, 0.04)';
+                    e.currentTarget.style.background = 'var(--hover-bg)';
                   }}
                 >
                   ×
@@ -927,10 +1007,10 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
             </div>
 
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="px-6 py-3 bg-white bg-opacity-30">
+              <div className="px-6 py-3" style={{ background: 'var(--bg-tertiary)' }}>
                 {/* Session Mean */}
                 {solveHistory.length > 0 && (
-                  <div className="mb-3 pb-3 border-b border-black border-opacity-5">
+                  <div className="mb-3 pb-3 border-b" style={{ borderColor: 'var(--border-light)' }}>
                     <div className="text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                       Session Mean
                     </div>
@@ -953,14 +1033,14 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                       className="text-xs px-2 py-1 rounded transition-colors"
                       style={{
                         color: 'var(--text-tertiary)',
-                        background: 'rgba(0, 0, 0, 0.04)'
+                        background: 'var(--hover-bg)'
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
                         e.currentTarget.style.color = '#ef4444';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.04)';
+                        e.currentTarget.style.background = 'var(--hover-bg)';
                         e.currentTarget.style.color = 'var(--text-tertiary)';
                       }}
                     >
@@ -970,7 +1050,10 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
+              <div 
+                className="flex-1 overflow-y-auto"
+                style={{ background: 'var(--bg-tertiary)' }}
+              >
                 {solveHistory.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
@@ -998,8 +1081,8 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                           onClick={() => setSelectedSolve(solve)}
                           onMouseEnter={(e) => {
                             if (!highlighting.isFastest && !highlighting.isSlowest) {
-                              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.03)';
-                              e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.08)';
+                              e.currentTarget.style.background = 'var(--hover-bg)';
+                              e.currentTarget.style.borderColor = 'var(--border-medium)';
                             }
                           }}
                           onMouseLeave={(e) => {
@@ -1090,7 +1173,8 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
           onClick={() => setSelectedSolve(null)}
         >
           <div 
-            className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            className="rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            style={{ background: 'var(--bg-primary)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
@@ -1101,14 +1185,14 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                 onClick={() => setSelectedSolve(null)}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-lg transition-colors"
                 style={{ 
-                  background: 'rgba(0, 0, 0, 0.04)', 
+                  background: 'var(--hover-bg)', 
                   color: 'var(--text-secondary)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.background = 'var(--hover-bg-strong)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.04)';
+                  e.currentTarget.style.background = 'var(--hover-bg)';
                 }}
               >
                 ×
@@ -1139,7 +1223,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
 
                   <div 
                     className="p-4 rounded-lg"
-                    style={{ background: 'rgba(0, 0, 0, 0.02)' }}
+                    style={{ background: 'var(--hover-bg)' }}
                   >
                     <div className="text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
                       Scramble
@@ -1166,7 +1250,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                             background: currentSolve.state === state ? 
                               (state === 'dnf' ? 'rgba(239, 68, 68, 0.1)' : 
                                state === 'plus2' ? 'rgba(245, 158, 11, 0.1)' : 
-                               'rgba(34, 197, 94, 0.1)') : 'rgba(0, 0, 0, 0.04)',
+                               'rgba(34, 197, 94, 0.1)') : 'var(--hover-bg)',
                             color: currentSolve.state === state ? 
                               (state === 'dnf' ? '#ef4444' : 
                                state === 'plus2' ? '#f59e0b' : 
@@ -1178,12 +1262,12 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
                           }}
                           onMouseEnter={(e) => {
                             if (currentSolve.state !== state) {
-                              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.08)';
+                              e.currentTarget.style.background = 'var(--hover-bg-strong)';
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (currentSolve.state !== state) {
-                              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.04)';
+                              e.currentTarget.style.background = 'var(--hover-bg)';
                             }
                           }}
                         >
@@ -1195,7 +1279,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
 
                   <div 
                     className="p-3 rounded-lg"
-                    style={{ background: 'rgba(0, 0, 0, 0.02)' }}
+                    style={{ background: 'var(--hover-bg)' }}
                   >
                     <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                       Raw Time: {formatTime(currentSolve.time)}
@@ -1242,10 +1326,11 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
           }}
         >
           <div 
-            className="bg-white rounded-lg shadow-2xl border px-6 py-4"
+            className="rounded-lg shadow-2xl border px-6 py-4"
             style={{
+              background: 'var(--bg-primary)',
               borderColor: 'rgba(239, 68, 68, 0.2)',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.08)'
+              boxShadow: theme === 'light' ? '0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.08)' : '0 20px 40px rgba(0, 0, 0, 0.4), 0 8px 16px rgba(0, 0, 0, 0.2)'
             }}
           >
             <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -1293,7 +1378,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
       }} />
 
       {/* Media Widget */}
-      <MediaWidget isFocused={isFocused} />
+      <MediaWidget isFocused={isFocused} theme={theme} />
     </div>
   );
 };
