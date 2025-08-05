@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import * as applescript from 'applescript';
+import { exec } from 'child_process';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -31,8 +31,10 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // Open the DevTools only in development.
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.webContents.openDevTools();
+  }
 };
 
 // This method will be called when Electron has finished
@@ -57,6 +59,34 @@ app.on('activate', () => {
   }
 });
 
+// AppleScript execution helper
+function execAppleScript(script: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // Use full path to osascript for packaged apps
+    const osascriptPath = '/usr/bin/osascript';
+    const command = `${osascriptPath} -e '${script.replace(/'/g, "'\"'\"'")}'`;
+    
+    console.log('Executing AppleScript command:', command);
+    
+    exec(command, { timeout: 10000 }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('AppleScript execution error:', error);
+        console.error('stderr:', stderr);
+        
+        // If it's a permission error, try to trigger permission request
+        if (stderr.includes('not authorized') || stderr.includes('not allowed')) {
+          console.log('Permission denied - this should trigger a permission request');
+        }
+        
+        reject(error);
+        return;
+      }
+      console.log('AppleScript result:', stdout.trim());
+      resolve(stdout.trim());
+    });
+  });
+}
+
 // Media info functions
 interface MediaInfo {
   title?: string;
@@ -69,7 +99,7 @@ interface MediaInfo {
 }
 
 async function getCurrentMediaFromSpotify(): Promise<MediaInfo | null> {
-  return new Promise((resolve) => {
+  try {
     const script = `
       tell application "System Events"
         if exists (processes where name is "Spotify") then
@@ -89,32 +119,33 @@ async function getCurrentMediaFromSpotify(): Promise<MediaInfo | null> {
       end tell
     `;
     
-    applescript.execString(script, (err: any, result: any) => {
-      if (err || result === 'not running' || !result) {
-        resolve(null);
-        return;
-      }
-      
-      const parts = result.split('|||');
-      if (parts.length >= 7) {
-        resolve({
-          title: parts[0] || undefined,
-          artist: parts[1] || undefined,
-          artwork: parts[2] || undefined,
-          isPlaying: parts[3] === 'true',
-          position: parseFloat(parts[4]) || 0,
-          duration: parseFloat(parts[5]) || 0,
-          volume: parseFloat(parts[6]) || 50
-        });
-      } else {
-        resolve(null);
-      }
-    });
-  });
+    const result = await execAppleScript(script);
+    
+    if (result === 'not running' || !result) {
+      return null;
+    }
+    
+    const parts = result.split('|||');
+    if (parts.length >= 7) {
+      return {
+        title: parts[0] || undefined,
+        artist: parts[1] || undefined,
+        artwork: parts[2] || undefined,
+        isPlaying: parts[3] === 'true',
+        position: parseFloat(parts[4]) || 0,
+        duration: parseFloat(parts[5]) || 0,
+        volume: parseFloat(parts[6]) || 50
+      };
+    } else {
+      return null;
+    }
+  } catch (error) {
+    return null;
+  }
 }
 
 async function getCurrentMediaFromMusic(): Promise<MediaInfo | null> {
-  return new Promise((resolve) => {
+  try {
     const script = `
       tell application "System Events"
         if exists (processes where name is "Music") then
@@ -133,24 +164,25 @@ async function getCurrentMediaFromMusic(): Promise<MediaInfo | null> {
       end tell
     `;
     
-    applescript.execString(script, (err: any, result: any) => {
-      if (err || result === 'not running' || !result) {
-        resolve(null);
-        return;
-      }
-      
-      const parts = result.split('|||');
-      if (parts.length >= 4) {
-        resolve({
-          title: parts[0] || undefined,
-          artist: parts[1] || undefined,
-          isPlaying: parts[3] === 'true'
-        });
-      } else {
-        resolve(null);
-      }
-    });
-  });
+    const result = await execAppleScript(script);
+    
+    if (result === 'not running' || !result) {
+      return null;
+    }
+    
+    const parts = result.split('|||');
+    if (parts.length >= 4) {
+      return {
+        title: parts[0] || undefined,
+        artist: parts[1] || undefined,
+        isPlaying: parts[3] === 'true'
+      };
+    } else {
+      return null;
+    }
+  } catch (error) {
+    return null;
+  }
 }
 
 async function getCurrentMedia(): Promise<MediaInfo | null> {
@@ -164,7 +196,7 @@ async function getCurrentMedia(): Promise<MediaInfo | null> {
 
 // Media control functions
 async function playPauseMedia(): Promise<boolean> {
-  return new Promise((resolve) => {
+  try {
     const script = `
       tell application "System Events"
         if exists (processes where name is "Spotify") then
@@ -183,14 +215,15 @@ async function playPauseMedia(): Promise<boolean> {
       end tell
     `;
     
-    applescript.execString(script, (err: any, result: any) => {
-      resolve(!err && result === 'success');
-    });
-  });
+    const result = await execAppleScript(script);
+    return result === 'success';
+  } catch (error) {
+    return false;
+  }
 }
 
 async function nextTrack(): Promise<boolean> {
-  return new Promise((resolve) => {
+  try {
     const script = `
       tell application "System Events"
         if exists (processes where name is "Spotify") then
@@ -209,14 +242,15 @@ async function nextTrack(): Promise<boolean> {
       end tell
     `;
     
-    applescript.execString(script, (err: any, result: any) => {
-      resolve(!err && result === 'success');
-    });
-  });
+    const result = await execAppleScript(script);
+    return result === 'success';
+  } catch (error) {
+    return false;
+  }
 }
 
 async function previousTrack(): Promise<boolean> {
-  return new Promise((resolve) => {
+  try {
     const script = `
       tell application "System Events"
         if exists (processes where name is "Spotify") then
@@ -235,14 +269,15 @@ async function previousTrack(): Promise<boolean> {
       end tell
     `;
     
-    applescript.execString(script, (err: any, result: any) => {
-      resolve(!err && result === 'success');
-    });
-  });
+    const result = await execAppleScript(script);
+    return result === 'success';
+  } catch (error) {
+    return false;
+  }
 }
 
 async function setVolume(volume: number): Promise<boolean> {
-  return new Promise((resolve) => {
+  try {
     const script = `
       tell application "System Events"
         if exists (processes where name is "Spotify") then
@@ -261,10 +296,11 @@ async function setVolume(volume: number): Promise<boolean> {
       end tell
     `;
     
-    applescript.execString(script, (err: any, result: any) => {
-      resolve(!err && result === 'success');
-    });
-  });
+    const result = await execAppleScript(script);
+    return result === 'success';
+  } catch (error) {
+    return false;
+  }
 }
 
 // IPC handlers
