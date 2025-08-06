@@ -1,13 +1,16 @@
 {
   "name": "zen-timer",
   "productName": "Zen Timer",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
+    "make:intel": "electron-forge make --arch=x64 --platform=darwin",
+    "make:arm64": "electron-forge make --arch=arm64 --platform=darwin", 
+    "make:both": "pnpm run make:intel && pnpm run make:arm64",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx ."
   },
