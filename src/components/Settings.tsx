@@ -1,4 +1,5 @@
 import React from 'react';
+import ImportTimes from './ImportTimes';
 
 export interface SettingsData {
   holdDuration: number; // in milliseconds
@@ -20,7 +21,7 @@ const Settings: React.FC<SettingsProps> = ({
   onSettingsChange, 
   onClose, 
   theme,
-  isFocused 
+  isFocused
 }) => {
   const [manualInput, setManualInput] = React.useState('');
   const themeVars = {
@@ -97,14 +98,14 @@ const Settings: React.FC<SettingsProps> = ({
       onClick={onClose}
     >
       <div 
-        className="rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+        className="rounded-xl max-w-md w-full mx-4 shadow-2xl max-h-[80vh] flex flex-col"
         style={{ 
           background: 'var(--bg-primary)',
           ...themeVars
         } as React.CSSProperties}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between p-6 pb-4 flex-shrink-0">
           <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
             Settings
           </h2>
@@ -126,7 +127,8 @@ const Settings: React.FC<SettingsProps> = ({
           </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-6">
+          <div className="space-y-6 pb-4">
           {/* Hold Duration Setting */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -321,10 +323,16 @@ const Settings: React.FC<SettingsProps> = ({
               Adjust the size of average times (Ao5, Ao12)
             </div>
           </div>
+
+          {/* Import Times */}
+          <ImportTimes 
+            theme={theme}
+          />
+          </div>
         </div>
 
         <div 
-          className="mt-8 pt-4 border-t"
+          className="pt-4 px-6 pb-6 border-t flex-shrink-0"
           style={{ borderColor: 'var(--border-light)' }}
         >
           <div className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
