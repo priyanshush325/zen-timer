@@ -54,24 +54,33 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     
     const recentSolves = solves.slice(0, count);
     
-    // Check if any solve is DNF - if so, average is DNF (return null for display purposes)
-    if (recentSolves.some(solve => solve.state === 'dnf')) {
+    // Count DNFs in the recent solves
+    const dnfCount = recentSolves.filter(solve => solve.state === 'dnf').length;
+    
+    // If there are 2 or more DNFs, the average is DNF
+    if (dnfCount >= 2) {
       return null;
     }
     
-    // Calculate actual times (add 2 seconds for +2 penalties)
-    const actualTimes = recentSolves.map(solve => 
-      solve.state === 'plus2' ? solve.time + 2000 : solve.time
-    );
+    // Create array with actual times, treating DNF as worst possible (Infinity)
+    const actualTimes = recentSolves.map(solve => {
+      if (solve.state === 'dnf') return Infinity;
+      return solve.state === 'plus2' ? solve.time + 2000 : solve.time;
+    });
     
     const sorted = [...actualTimes].sort((a, b) => a - b);
     
-    // Remove fastest and slowest
+    // Remove fastest and slowest (DNF will be slowest and get trimmed out)
     const trimmed = sorted.slice(1, -1);
     
+    // Filter out any Infinity values (shouldn't happen after trimming, but safety check)
+    const validTimes = trimmed.filter(time => time !== Infinity);
+    
+    if (validTimes.length === 0) return null;
+    
     // Calculate average of remaining times
-    const sum = trimmed.reduce((acc, time) => acc + time, 0);
-    return sum / trimmed.length;
+    const sum = validTimes.reduce((acc, time) => acc + time, 0);
+    return sum / validTimes.length;
   };
 
   const calculateBestWorstPossible = (solves: SolveRecord[], count: number): { best: number | null; worst: number | null } => {
@@ -79,25 +88,29 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     
     const recentSolves = solves.slice(0, count);
     
-    // If any solve is DNF, we can't calculate meaningful best/worst
-    if (recentSolves.some(solve => solve.state === 'dnf')) {
+    // Count DNFs in the recent solves
+    const dnfCount = recentSolves.filter(solve => solve.state === 'dnf').length;
+    
+    // If there are 2 or more DNFs, we can't calculate meaningful best/worst
+    if (dnfCount >= 2) {
       return { best: null, worst: null };
     }
     
-    // Calculate actual times (add 2 seconds for +2 penalties)
-    const actualTimes = recentSolves.map(solve => 
-      solve.state === 'plus2' ? solve.time + 2000 : solve.time
-    );
+    // Create array with actual times, treating DNF as worst possible (Infinity)
+    const actualTimes = recentSolves.map(solve => {
+      if (solve.state === 'dnf') return Infinity;
+      return solve.state === 'plus2' ? solve.time + 2000 : solve.time;
+    });
     
     const sorted = [...actualTimes].sort((a, b) => a - b);
     
-    // Best possible: remove slowest time and second slowest
-    const bestTrimmed = sorted.slice(0, -2);
-    const best = bestTrimmed.reduce((acc, time) => acc + time, 0) / bestTrimmed.length;
+    // Best possible: remove slowest time and second slowest (DNF will be among slowest)
+    const bestTrimmed = sorted.slice(0, -2).filter(time => time !== Infinity);
+    const best = bestTrimmed.length > 0 ? bestTrimmed.reduce((acc, time) => acc + time, 0) / bestTrimmed.length : null;
     
     // Worst possible: remove fastest time and second fastest
-    const worstTrimmed = sorted.slice(2);
-    const worst = worstTrimmed.reduce((acc, time) => acc + time, 0) / worstTrimmed.length;
+    const worstTrimmed = sorted.slice(2).filter(time => time !== Infinity);
+    const worst = worstTrimmed.length > 0 ? worstTrimmed.reduce((acc, time) => acc + time, 0) / worstTrimmed.length : null;
     
     return { best, worst };
   };
