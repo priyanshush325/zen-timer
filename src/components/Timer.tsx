@@ -17,11 +17,9 @@ interface SolveRecord {
   inspectionTime?: number; // time used for inspection in seconds, undefined if no inspection
 }
 
-interface TimerProps {
-  onBackToHome: () => void;
-}
+interface TimerProps {}
 
-const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
+const Timer: React.FC<TimerProps> = () => {
   const [state, setState] = useState<TimerState>('idle');
   const [time, setTime] = useState(0);
   const [isKeyDown, setIsKeyDown] = useState(false);
@@ -540,8 +538,6 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
         setShowSettings(false);
       } else if (showHistory) {
         setShowHistory(false);
-      } else {
-        onBackToHome();
       }
       return;
     }
@@ -625,7 +621,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
     } else if (state === 'running') {
       stopTimer();
     }
-  }, [state, isKeyDown, stopTimer, onBackToHome, showHistory, selectedSolve, solveHistory, updateLastSolveState, handleDeleteConfirmation, startInspection, settings.useInspection]);
+  }, [state, isKeyDown, stopTimer, showHistory, selectedSolve, solveHistory, updateLastSolveState, handleDeleteConfirmation, startInspection, settings.useInspection]);
 
   const handleKeyUp = useCallback((event: KeyboardEvent) => {
     if (event.code !== 'Space') return;
@@ -1139,7 +1135,7 @@ const Timer: React.FC<TimerProps> = ({ onBackToHome }) => {
             >
               ESC
             </kbd>{' '}
-            to go back
+            to close dialogs
           </div>
         </div>
         </div>
