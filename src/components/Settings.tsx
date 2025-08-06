@@ -3,6 +3,8 @@ import React from 'react';
 export interface SettingsData {
   holdDuration: number; // in milliseconds
   useInspection: boolean;
+  timerFontSize: number; // 1-5 scale (small to extra large)
+  averageFontSize: number; // 1-5 scale (small to extra large)
 }
 
 interface SettingsProps {
@@ -67,6 +69,25 @@ const Settings: React.FC<SettingsProps> = ({
       ...settings,
       useInspection: !settings.useInspection
     });
+  };
+
+  const handleTimerFontSizeChange = (value: number) => {
+    onSettingsChange({
+      ...settings,
+      timerFontSize: value
+    });
+  };
+
+  const handleAverageFontSizeChange = (value: number) => {
+    onSettingsChange({
+      ...settings,
+      averageFontSize: value
+    });
+  };
+
+  const getFontSizeLabel = (size: number): string => {
+    const labels = ['XS', 'S', 'M', 'L', 'XL'];
+    return labels[size - 1] || 'M';
   };
 
   return (
@@ -220,6 +241,86 @@ const Settings: React.FC<SettingsProps> = ({
               }
             </div>
           </div>
+
+          {/* Timer Font Size */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label 
+                className="text-sm font-medium"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Timer Font Size
+              </label>
+              <span 
+                className="text-sm font-mono"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {getFontSizeLabel(settings.timerFontSize)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="1"
+              value={settings.timerFontSize}
+              onChange={(e) => handleTimerFontSizeChange(parseInt(e.target.value))}
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((settings.timerFontSize - 1) / 4) * 100}%, var(--gray-100) ${((settings.timerFontSize - 1) / 4) * 100}%, var(--gray-100) 100%)`
+              }}
+            />
+            <div className="flex justify-between text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <span>XS</span>
+              <span>S</span>
+              <span>M</span>
+              <span>L</span>
+              <span>XL</span>
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Adjust the size of the main timer display
+            </div>
+          </div>
+
+          {/* Average Font Size */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label 
+                className="text-sm font-medium"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Average Font Size
+              </label>
+              <span 
+                className="text-sm font-mono"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {getFontSizeLabel(settings.averageFontSize)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="1"
+              value={settings.averageFontSize}
+              onChange={(e) => handleAverageFontSizeChange(parseInt(e.target.value))}
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+              style={{
+                background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((settings.averageFontSize - 1) / 4) * 100}%, var(--gray-100) ${((settings.averageFontSize - 1) / 4) * 100}%, var(--gray-100) 100%)`
+              }}
+            />
+            <div className="flex justify-between text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <span>XS</span>
+              <span>S</span>
+              <span>M</span>
+              <span>L</span>
+              <span>XL</span>
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Adjust the size of average times (Ao5, Ao12)
+            </div>
+          </div>
         </div>
 
         <div 
@@ -253,7 +354,6 @@ const Settings: React.FC<SettingsProps> = ({
             height: 20px;
             width: 20px;
             border-radius: 50%;
-            background: #22c55e;
             cursor: pointer;
             border: 2px solid #ffffff;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -262,10 +362,27 @@ const Settings: React.FC<SettingsProps> = ({
             height: 20px;
             width: 20px;
             border-radius: 50%;
-            background: #22c55e;
             cursor: pointer;
             border: 2px solid #ffffff;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          /* Green slider for hold duration */
+          input[type="range"][min="0"][max="2000"]::-webkit-slider-thumb {
+            background: #22c55e;
+          }
+          input[type="range"][min="0"][max="2000"]::-moz-range-thumb {
+            background: #22c55e;
+          }
+          /* Blue slider for timer font size */
+          input[type="range"][min="1"][max="5"][value]::-webkit-slider-thumb {
+            background: #3b82f6;
+          }
+          input[type="range"][min="1"][max="5"][value]::-moz-range-thumb {
+            background: #3b82f6;
+          }
+          /* Purple slider for average font size - target by specific gradient color */
+          input[type="range"]:has(+ .flex .text-xs:contains("average"))::-webkit-slider-thumb {
+            background: #8b5cf6;
           }
         `
       }} />

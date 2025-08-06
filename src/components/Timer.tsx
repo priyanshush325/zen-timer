@@ -37,7 +37,9 @@ const Timer: React.FC<TimerProps> = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<SettingsData>({
     holdDuration: 500,
-    useInspection: true
+    useInspection: true,
+    timerFontSize: 3, // Default to medium size
+    averageFontSize: 2 // Default to small-medium size
   });
   const [, forceUpdate] = useState({});
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
@@ -128,6 +130,29 @@ const Timer: React.FC<TimerProps> = () => {
     
     const sum = actualTimes.reduce((acc, time) => acc + time, 0);
     return sum / actualTimes.length;
+  };
+
+  // Font size helpers
+  const getTimerFontClass = (size: number): string => {
+    const sizeMap = {
+      1: 'text-6xl md:text-7xl',    // XS - smaller than current default
+      2: 'text-7xl md:text-8xl',    // S
+      3: 'text-8xl md:text-9xl',    // M - current default
+      4: 'text-9xl md:text-[10rem]', // L
+      5: 'text-[8rem] md:text-[12rem]' // XL - very large
+    };
+    return sizeMap[size as keyof typeof sizeMap] || sizeMap[3];
+  };
+
+  const getAverageFontClass = (size: number): string => {
+    const sizeMap = {
+      1: 'text-xs',     // XS
+      2: 'text-sm',     // S - current default
+      3: 'text-base',   // M
+      4: 'text-lg',     // L
+      5: 'text-xl'      // XL
+    };
+    return sizeMap[size as keyof typeof sizeMap] || sizeMap[2];
   };
 
   // Theme management
@@ -805,7 +830,7 @@ const Timer: React.FC<TimerProps> = () => {
         <div className="text-center max-w-4xl mx-auto">
         <div className="mb-8">
           <div 
-            className="text-8xl md:text-9xl font-mono font-bold"
+            className={`${getTimerFontClass(settings.timerFontSize)} font-mono font-bold`}
             style={{ 
               color: getDisplayColor(),
               lineHeight: '1.1',
@@ -867,7 +892,7 @@ const Timer: React.FC<TimerProps> = () => {
                 
                 return ao5 ? (
                   <div 
-                    className="text-sm font-mono font-semibold"
+                    className={`${getAverageFontClass(settings.averageFontSize)} font-mono font-semibold`}
                     style={{ color: 'var(--text-primary)' }}
                   >
                     Ao5: {formatTime(ao5)} <span className="text-xs font-normal">(
@@ -878,7 +903,7 @@ const Timer: React.FC<TimerProps> = () => {
                   </div>
                 ) : (
                   <div 
-                    className="text-sm font-mono font-semibold"
+                    className={`${getAverageFontClass(settings.averageFontSize)} font-mono font-semibold`}
                     style={{ color: '#ef4444' }}
                   >
                     Ao5: DNF
@@ -893,7 +918,7 @@ const Timer: React.FC<TimerProps> = () => {
                 
                 return ao12 ? (
                   <div 
-                    className="text-sm font-mono font-semibold"
+                    className={`${getAverageFontClass(settings.averageFontSize)} font-mono font-semibold`}
                     style={{ color: 'var(--text-primary)' }}
                   >
                     Ao12: {formatTime(ao12)} <span className="text-xs font-normal">(
@@ -904,7 +929,7 @@ const Timer: React.FC<TimerProps> = () => {
                   </div>
                 ) : (
                   <div 
-                    className="text-sm font-mono font-semibold"
+                    className={`${getAverageFontClass(settings.averageFontSize)} font-mono font-semibold`}
                     style={{ color: '#ef4444' }}
                   >
                     Ao12: DNF
