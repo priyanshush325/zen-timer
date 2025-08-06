@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ScrambleGenerator, { ScrambleGeneratorRef } from './ScrambleGenerator';
 import MediaWidget from './MediaWidget';
 import Settings, { SettingsData } from './Settings';
+import SessionManager from './SessionManager';
+import { useSessions } from '../hooks/useSessions';
+import ImportTimes from './ImportTimes';
 
 type TimerState = 'idle' | 'inspection' | 'ready' | 'running' | 'stopped';
 type SolveState = 'ok' | 'plus2' | 'dnf';
@@ -25,7 +28,19 @@ const Timer: React.FC<TimerProps> = () => {
   const [isKeyDown, setIsKeyDown] = useState(false);
   const [keyDownTime, setKeyDownTime] = useState<number | null>(null);
   const [keyDownStartState, setKeyDownStartState] = useState<TimerState | null>(null);
-  const [solveHistory, setSolveHistory] = useState<SolveRecord[]>([]);
+  const {
+    sessions,
+    activeSessionId,
+    getActiveSession,
+    createSession,
+    switchSession,
+    deleteSession,
+    renameSession,
+    addSolveToActiveSession,
+    updateSolveInActiveSession,
+    deleteSolveFromActiveSession,
+    clearActiveSession
+  } = useSessions();
   const [showHistory, setShowHistory] = useState(false);
   const [selectedSolve, setSelectedSolve] = useState<SolveRecord | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
@@ -207,83 +222,16 @@ const Timer: React.FC<TimerProps> = () => {
   // Determine if we should be in focused mode (fade out UI)
   const isFocused = isKeyDown || state === 'inspection' || state === 'running';
 
-  // Load solve history from localStorage on component mount
-  useEffect(() => {
-    const saved = localStorage.getItem('zen-timer-history');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          // Handle migration from old format (array of numbers) to new format
-          if (parsed.length > 0 && typeof parsed[0] === 'number') {
-            // Old format (array of numbers) - convert to new format
-            const migrated: SolveRecord[] = parsed.map((time: number, index: number) => ({
-              id: `migrated-${Date.now()}-${index}`,
-              time,
-              scramble: 'Unknown scramble (migrated)',
-              timestamp: Date.now() - (index * 60000), // Approximate timestamps
-              state: 'ok' as SolveState
-            }));
-            setSolveHistory(migrated);
-            // Save migrated data
-            localStorage.setItem('zen-timer-history', JSON.stringify(migrated));
-          } else if (parsed.length > 0 && parsed[0].state === undefined) {
-            // Old SolveRecord format without state - add state field
-            const migrated: SolveRecord[] = parsed.map((solve: any) => ({
-              ...solve,
-              state: 'ok' as SolveState
-            }));
-            setSolveHistory(migrated);
-            // Save migrated data
-            localStorage.setItem('zen-timer-history', JSON.stringify(migrated));
-          } else if (parsed.length > 0 && parsed[0].ao5 === undefined) {
-            // SolveRecord format without ao5/ao12 - add average fields
-            const migrated: SolveRecord[] = parsed.map((solve: any, index: number) => {
-              // Calculate what the averages would have been at this point in history
-              const historyAtTime = parsed.slice(index);
-              const ao5 = calculateAverage(historyAtTime, 5);
-              const ao12 = calculateAverage(historyAtTime, 12);
-              
-              return {
-                ...solve,
-                ao5,
-                ao12
-              };
-            });
-            setSolveHistory(migrated);
-            // Save migrated data
-            localStorage.setItem('zen-timer-history', JSON.stringify(migrated));
-          } else {
-            // New format
-            setSolveHistory(parsed);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to parse saved solve history:', error);
-      }
-    }
-  }, []);
-
-  // Save solve history to localStorage whenever it changes
-  useEffect(() => {
-    if (solveHistory.length > 0) {
-      localStorage.setItem('zen-timer-history', JSON.stringify(solveHistory));
-    }
-  }, [solveHistory]);
+  // Get current session data
+  const activeSession = getActiveSession();
+  const solveHistory = activeSession?.solves || [];
 
   const clearHistory = () => {
-    setSolveHistory([]);
-    localStorage.removeItem('zen-timer-history');
+    clearActiveSession();
   };
 
   const updateSolveState = (solveId: string, newState: SolveState) => {
-    setSolveHistory(prev => 
-      prev.map(solve => 
-        solve.id === solveId 
-          ? { ...solve, state: newState }
-          : solve
-      )
-    );
+    updateSolveInActiveSession(solveId, { state: newState });
   };
 
   const updateLastSolveState = useCallback((newState: SolveState) => {
@@ -293,7 +241,7 @@ const Timer: React.FC<TimerProps> = () => {
   }, [solveHistory, updateSolveState]);
 
   const deleteSolve = (solveId: string) => {
-    setSolveHistory(prev => prev.filter(solve => solve.id !== solveId));
+    deleteSolveFromActiveSession(solveId);
     // Close modal if we're deleting the currently selected solve
     if (selectedSolve && selectedSolve.id === solveId) {
       setSelectedSolve(null);
@@ -519,28 +467,16 @@ const Timer: React.FC<TimerProps> = () => {
       
       inspectionOvertimeRef.current = 0;
       inspectionTimeUsedRef.current = undefined;
-      setSolveHistory(prev => {
-        
-        const tempNewSolve: SolveRecord = {
-          id: `solve-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-          time: finalTime,
-          scramble: currentScramble,
-          timestamp: Date.now(),
-          state: solveState,
-          inspectionTime: inspectionTimeUsed
-        };
-        
-        const updatedHistory = [tempNewSolve, ...prev.slice(0, 49)];
-        const ao5 = calculateAverage(updatedHistory, 5);
-        const ao12 = calculateAverage(updatedHistory, 12);
-        const newSolve: SolveRecord = {
-          ...tempNewSolve,
-          ao5,
-          ao12
-        };
-        
-        return [newSolve, ...prev.slice(0, 49)];
-      });
+      const newSolve: SolveRecord = {
+        id: `solve-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        time: finalTime,
+        scramble: currentScramble,
+        timestamp: Date.now(),
+        state: solveState,
+        inspectionTime: inspectionTimeUsed
+      };
+      
+      addSolveToActiveSession(newSolve);
       
       // Generate a new scramble after completing a solve
       if (scrambleRef.current) {
@@ -1206,6 +1142,32 @@ const Timer: React.FC<TimerProps> = () => {
 
             <div className="flex-1 flex flex-col min-h-0">
               <div className="px-6 py-3" style={{ background: 'var(--bg-tertiary)' }}>
+                {/* Session Manager */}
+                <div className="mb-4 pb-3 border-b" style={{ borderColor: 'var(--border-light)' }}>
+                  <SessionManager
+                    theme={theme}
+                    sessions={sessions}
+                    activeSessionId={activeSessionId}
+                    onSessionChange={switchSession}
+                    onCreateSession={createSession}
+                    onDeleteSession={deleteSession}
+                    onRenameSession={renameSession}
+                  />
+                </div>
+
+                {/* Import Times */}
+                <div className="mb-4 pb-3 border-b" style={{ borderColor: 'var(--border-light)' }}>
+                  <ImportTimes
+                    theme={theme}
+                    onImport={(times) => {
+                      // Import functionality will be handled by the ImportTimes component
+                      // It will add solves directly to the active session via localStorage migration
+                      // Force update by switching session state
+                      forceUpdate({});
+                    }}
+                  />
+                </div>
+
                 {/* Session Mean */}
                 {solveHistory.length > 0 && (
                   <div className="mb-3 pb-3 border-b" style={{ borderColor: 'var(--border-light)' }}>

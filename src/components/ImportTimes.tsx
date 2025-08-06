@@ -48,7 +48,7 @@ const ImportTimes: React.FC<ImportTimesProps> = ({ theme, onImport }) => {
     return sum / validTimes.length;
   };
 
-  const saveTimesToLocalStorage = (times: number[]) => {
+  const saveTimesToActiveSession = (times: number[]) => {
     if (times.length === 0) return;
     
     const currentTime = Date.now();
@@ -60,38 +60,63 @@ const ImportTimes: React.FC<ImportTimesProps> = ({ theme, onImport }) => {
       state: 'ok' as SolveState
     }));
     
-    // Load existing history
-    const existingHistory: SolveRecord[] = [];
-    const saved = localStorage.getItem('zen-timer-history');
-    if (saved) {
+    // Load existing sessions
+    const sessionsData = localStorage.getItem('zen-timer-sessions');
+    if (sessionsData) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          existingHistory.push(...parsed);
+        const sessionManager = JSON.parse(sessionsData);
+        const activeSession = sessionManager.sessions.find((s: any) => s.id === sessionManager.activeSessionId);
+        
+        if (activeSession) {
+          // Add imported solves to the active session (most recent first)
+          const updatedSolves = [...importedSolves.reverse(), ...activeSession.solves];
+          
+          // Recalculate averages for all solves
+          const solvesWithAverages = updatedSolves.map((solve, index) => {
+            const historyAtTime = updatedSolves.slice(index);
+            const ao5 = calculateAverage(historyAtTime, 5);
+            const ao12 = calculateAverage(historyAtTime, 12);
+            
+            return {
+              ...solve,
+              ao5,
+              ao12
+            };
+          });
+          
+          // Update the active session
+          activeSession.solves = solvesWithAverages;
+          sessionManager.lastUpdated = Date.now();
+          
+          // Save updated sessions back to localStorage
+          localStorage.setItem('zen-timer-sessions', JSON.stringify(sessionManager));
+          return;
         }
       } catch (error) {
-        console.error('Failed to parse existing history:', error);
+        console.error('Failed to parse existing sessions:', error);
       }
     }
     
-    // Add imported solves to the beginning (most recent first)
-    const updatedHistory = [...importedSolves.reverse(), ...existingHistory];
-    
-    // Recalculate averages for all solves
-    const historyWithAverages = updatedHistory.map((solve, index) => {
-      const historyAtTime = updatedHistory.slice(index);
-      const ao5 = calculateAverage(historyAtTime, 5);
-      const ao12 = calculateAverage(historyAtTime, 12);
-      
-      return {
-        ...solve,
-        ao5,
-        ao12
-      };
-    });
-    
-    // Save to localStorage
-    localStorage.setItem('zen-timer-history', JSON.stringify(historyWithAverages));
+    // Fallback: save to legacy format for migration
+    const legacyHistory = localStorage.getItem('zen-timer-history') || '[]';
+    try {
+      const existing = JSON.parse(legacyHistory);
+      const updatedHistory = [...importedSolves.reverse(), ...existing];
+      const historyWithAverages = updatedHistory.map((solve, index) => {
+        const historyAtTime = updatedHistory.slice(index);
+        const ao5 = calculateAverage(historyAtTime, 5);
+        const ao12 = calculateAverage(historyAtTime, 12);
+        
+        return {
+          ...solve,
+          ao5,
+          ao12
+        };
+      });
+      localStorage.setItem('zen-timer-history', JSON.stringify(historyWithAverages));
+    } catch (error) {
+      console.error('Failed to update legacy history:', error);
+    }
   };
 
   const themeVars = {
@@ -186,7 +211,7 @@ const ImportTimes: React.FC<ImportTimesProps> = ({ theme, onImport }) => {
         return;
       }
       
-      saveTimesToLocalStorage(result.times);
+      saveTimesToActiveSession(result.times);
       if (onImport) {
         onImport(result.times);
       }
