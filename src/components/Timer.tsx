@@ -950,7 +950,7 @@ const Timer: React.FC<TimerProps> = () => {
         }}
       >
         <div className="mb-2">
-          {state === 'idle' && (
+          {state === 'idle' && settings.useInspection && (
             <>
               Press{' '}
               <kbd 
@@ -963,7 +963,7 @@ const Timer: React.FC<TimerProps> = () => {
               >
                 Space
               </kbd>{' '}
-              to {settings.useInspection ? 'start inspection' : settings.holdDuration === 0 ? 'start timer' : `hold for ${settings.holdDuration}ms to start`}
+              to start inspection
             </>
           )}
           {state === 'inspection' && (
