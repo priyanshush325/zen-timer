@@ -6,6 +6,7 @@
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
+    "dev:web": "vite --config vite.renderer.config.ts",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "make:intel": "electron-forge make --arch=x64 --platform=darwin",
