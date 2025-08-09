@@ -78,13 +78,6 @@ const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused, theme }) => {
         clearInterval(interval);
         window.electronAPI!.removeMediaListeners();
       };
-    } else {
-      // Fallback for web (show placeholder)
-      setMediaInfo({
-        title: 'Electron Required',
-        artist: 'System media access needs Electron',
-        isPlaying: false
-      });
     }
   }, []);
 
@@ -133,6 +126,11 @@ const MediaWidget: React.FC<MediaWidgetProps> = ({ isFocused, theme }) => {
     }
   };
 
+
+  // Don't show widget if not running in Electron
+  if (!isElectron) {
+    return null;
+  }
 
   // Don't show widget if no media info
   if (!mediaInfo || !mediaInfo.title) {
