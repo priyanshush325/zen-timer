@@ -1152,7 +1152,7 @@ const Timer: React.FC<TimerProps> = () => {
             <div className="text-[10px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
               Zen Timer uses Google Analytics.{' '}
               <a 
-                href="https://github.com/your-username/zen-timer/blob/main/index.html#L11-L19" 
+                href="https://github.com/priyanshush325/zen-timer" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="underline hover:opacity-80 transition-opacity"
