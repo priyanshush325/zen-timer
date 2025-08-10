@@ -1,4 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+// Google Analytics gtag function declaration
+declare global {
+  function gtag(...args: any[]): void;
+}
 import ScrambleGenerator, { ScrambleGeneratorRef } from './ScrambleGenerator';
 import MediaWidget from './MediaWidget';
 import Settings, { SettingsData } from './Settings';
@@ -441,7 +446,19 @@ const Timer: React.FC<TimerProps> = () => {
     
     inspectionTimeUsedRef.current = totalInspectionTime;
     inspectionStartRef.current = null;
-  }, []);
+    
+    // Track timer start event
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'timer_start', {
+        event_category: 'Timer',
+        event_label: currentCubeType,
+        custom_parameters: {
+          had_inspection: totalInspectionTime !== undefined,
+          inspection_overtime: inspectionOvertime
+        }
+      });
+    }
+  }, [currentCubeType]);
 
   const stopTimer = useCallback(() => {
     if (timerStoppedRef.current) {

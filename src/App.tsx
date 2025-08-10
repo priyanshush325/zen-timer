@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import StartupScreen from './components/StartupScreen';
 import Timer from './components/Timer';
 
+// Google Analytics gtag function declaration
+declare global {
+  function gtag(...args: any[]): void;
+}
+
 type Screen = 'startup' | 'timer';
 
 const App: React.FC = () => {
@@ -15,6 +20,14 @@ const App: React.FC = () => {
     // Mark that user has seen the startup screen
     localStorage.setItem('zen-timer-seen-startup', 'true');
     setCurrentScreen('timer');
+    
+    // Track that user made it past splash screen
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'splash_screen_completed', {
+        event_category: 'User Journey',
+        event_label: 'First Time User'
+      });
+    }
   };
 
   return (
