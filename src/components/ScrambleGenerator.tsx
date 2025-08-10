@@ -1,4 +1,5 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { randomScrambleForEvent } from 'cubing/scramble';
 
 interface ScrambleGeneratorProps {
   onNewScramble?: (scramble: string) => void;
@@ -16,68 +17,20 @@ const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProp
   const [scrambleHistory, setScrambleHistory] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const faces = ['R', 'L', 'U', 'D', 'F', 'B'];
-  const modifiers = ['', "'", '2'];
-
-  const generateScramble = (): string => {
-    const moves: string[] = [];
-    let lastFace = '';
-    let lastAxis = '';
-
-    const getAxis = (face: string): string => {
-      switch (face) {
-        case 'R':
-        case 'L':
-          return 'x';
-        case 'U':
-        case 'D':
-          return 'y';
-        case 'F':
-        case 'B':
-          return 'z';
-        default:
-          return '';
-      }
-    };
-
-    const getOppositeFace = (face: string): string => {
-      switch (face) {
-        case 'R': return 'L';
-        case 'L': return 'R';
-        case 'U': return 'D';
-        case 'D': return 'U';
-        case 'F': return 'B';
-        case 'B': return 'F';
-        default: return '';
-      }
-    };
-
-    for (let i = 0; i < 25; i++) {
-      let face: string;
-      let attempts = 0;
-      
-      do {
-        face = faces[Math.floor(Math.random() * faces.length)];
-        attempts++;
-      } while (
-        attempts < 10 && 
-        (face === lastFace || 
-         (i > 0 && getAxis(face) === lastAxis && 
-          (face === getOppositeFace(lastFace) || lastFace === getOppositeFace(face))))
-      );
-
-      const modifier = modifiers[Math.floor(Math.random() * modifiers.length)];
-      moves.push(face + modifier);
-      
-      lastFace = face;
-      lastAxis = getAxis(face);
+  const generateScramble = async (): Promise<string> => {
+    try {
+      // Generate 3x3x3 scramble using cubing library
+      const scramble = await randomScrambleForEvent('333');
+      return scramble.toString();
+    } catch (error) {
+      console.error('Failed to generate scramble with cubing library:', error);
+      // Display error message to user if scramble generation fails
+      return 'Error Generating Scramble';
     }
-
-    return moves.join(' ');
   };
 
-  const newScramble = () => {
-    const newScrambleString = generateScramble();
+  const newScramble = async () => {
+    const newScrambleString = await generateScramble();
     setScramble(newScrambleString);
     
     // Add to history and reset index to 0 (most recent)
