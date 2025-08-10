@@ -37,7 +37,6 @@ const GraphWidget: React.FC<GraphWidgetProps> = ({
   sessions,
   getActiveSession 
 }) => {
-  console.log('GraphWidget render - total sessions:', sessions.length, 'total solves:', sessions.flatMap(s => s.solves).length);
   const [viewMode, setViewMode] = useState<'preset' | 'custom'>('preset');
   const [selectedPreset, setSelectedPreset] = useState<PresetView>('times-vs-time');
   const [filters, setFilters] = useState<{

@@ -50,6 +50,7 @@ const Timer: React.FC<TimerProps> = () => {
   const [deleteConfirmationActive, setDeleteConfirmationActive] = useState(false);
   const [graphRefreshTrigger, setGraphRefreshTrigger] = useState(0);
   const [currentCubeType, setCurrentCubeType] = useState('333');
+  const [showGraphWidget, setShowGraphWidget] = useState(true);
   const [toastFadingOut, setToastFadingOut] = useState(false);
   const [inspectionTime, setInspectionTime] = useState(15);
   const [inspectionOvertime, setInspectionOvertime] = useState(0);
@@ -521,6 +522,12 @@ const Timer: React.FC<TimerProps> = () => {
     if (event.code === 'KeyS' && !isKeyDown && state !== 'running') {
       event.preventDefault();
       setShowSettings(!showSettings);
+      return;
+    }
+
+    if (event.code === 'KeyG' && !isKeyDown && state !== 'running') {
+      event.preventDefault();
+      setShowGraphWidget(!showGraphWidget);
       return;
     }
 
@@ -1056,6 +1063,20 @@ const Timer: React.FC<TimerProps> = () => {
                 color: 'var(--text-primary)'
               }}
             >
+              G
+            </kbd>{' '}
+            for stats
+          </div>
+          <div>
+            Press{' '}
+            <kbd 
+              className="px-2 py-1 rounded text-xs font-medium mx-1" 
+              style={{ 
+                background: 'var(--gray-100)',
+                borderColor: 'var(--border-medium)',
+                color: 'var(--text-primary)'
+              }}
+            >
               O
             </kbd>
             <kbd 
@@ -1572,14 +1593,16 @@ const Timer: React.FC<TimerProps> = () => {
       )}
 
       {/* Graph Widget */}
-      <GraphWidget 
-        isFocused={isFocused} 
-        theme={theme} 
-        currentCubeType={currentCubeType}
-        refreshTrigger={graphRefreshTrigger}
-        sessions={sessions}
-        getActiveSession={getActiveSession}
-      />
+      {showGraphWidget && (
+        <GraphWidget 
+          isFocused={isFocused} 
+          theme={theme} 
+          currentCubeType={currentCubeType}
+          refreshTrigger={graphRefreshTrigger}
+          sessions={sessions}
+          getActiveSession={getActiveSession}
+        />
+      )}
 
       {/* Media Widget */}
       <MediaWidget isFocused={isFocused} theme={theme} />
