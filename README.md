@@ -70,6 +70,39 @@ zen-timer/
 
 ## Contributing
 
+⚠️ **Important**: All contributions must be made against the `dev` branch. Pull requests directly to `main` will be rejected by default.
+
+### Branch Workflow
+
+- **`main`**: Production-ready code, stable releases only
+- **`dev`**: Active development branch where all new features are integrated
+- **Feature branches**: Branch from `dev` for individual features
+
+### Development Workflow
+
+1. **Fork the repository**
+2. **Clone and switch to dev branch**
+   ```bash
+   git clone https://github.com/your-username/zen-timer.git
+   cd zen-timer
+   git checkout dev
+   ```
+3. **Create a feature branch from dev**
+   ```bash
+   git checkout -b feat/amazing-feature
+   ```
+4. **Make your changes** following the code style
+5. **Commit using conventional commits** (see below)
+6. **Push and create a Pull Request against the `dev` branch**
+
+**🚨 Pull Request Requirements:**
+- Target the `dev` branch (not `main`)
+- Follow conventional commit format
+- Include clear description of changes
+- Ensure all tests pass
+
+Once features in `dev` are validated and ready for release, they will be merged into `main`.
+
 ### Commit Convention
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/). Please format your commits as:
@@ -94,20 +127,6 @@ fix: resolve timing accuracy on slower devices
 docs: update installation instructions
 style: improve button hover animations
 ```
-
-### Development Workflow
-
-1. **Fork the repository**
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feat/amazing-feature
-   ```
-3. **Make your changes** following the code style
-4. **Commit using conventional commits**
-   ```bash
-   git commit -m "feat: add amazing new feature"
-   ```
-5. **Push and create a Pull Request**
 
 ### Code Style
 
