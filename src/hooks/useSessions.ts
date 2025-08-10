@@ -11,6 +11,7 @@ interface SolveRecord {
   ao5?: number | null;
   ao12?: number | null;
   inspectionTime?: number;
+  puzzleType?: string; // e.g., '333', '222', '444', etc. Defaults to '333' if missing
 }
 
 interface Session {
@@ -29,6 +30,11 @@ interface SessionManager {
 
 const SESSIONS_STORAGE_KEY = 'zen-timer-sessions';
 const LEGACY_HISTORY_KEY = 'zen-timer-history';
+
+// Helper function to get puzzle type with default
+const getPuzzleType = (solve: SolveRecord): string => {
+  return solve.puzzleType || '333';
+};
 
 export const useSessions = () => {
   const [sessionManager, setSessionManager] = useState<SessionManager>({

@@ -1,5 +1,6 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { randomScrambleForEvent } from 'cubing/scramble';
+import PuzzleIcon from './PuzzleIcon';
 
 interface ScrambleGeneratorProps {
   onNewScramble?: (scramble: string) => void;
@@ -109,20 +110,9 @@ const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProp
             letterSpacing: '0.05em'
           }}
         >
-          {/* 3x3 Grid Icon */}
+          {/* Puzzle Icon */}
           <div className="flex-shrink-0">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              {/* 3x3 grid of squares */}
-              <rect x="2" y="2" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="9" y="2" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="16" y="2" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="2" y="9" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="9" y="9" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="16" y="9" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="2" y="16" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="9" y="16" width="6" height="6" fill="currentColor" opacity="0.6" />
-              <rect x="16" y="16" width="6" height="6" fill="currentColor" opacity="0.6" />
-            </svg>
+            <PuzzleIcon puzzleType="333" size={20} />
           </div>
           <span>{scramble}</span>
         </div>

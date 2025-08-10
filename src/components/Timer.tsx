@@ -3,6 +3,7 @@ import ScrambleGenerator, { ScrambleGeneratorRef } from './ScrambleGenerator';
 import MediaWidget from './MediaWidget';
 import Settings, { SettingsData } from './Settings';
 import SessionManager from './SessionManager';
+import PuzzleIcon from './PuzzleIcon';
 import { useSessions } from '../hooks/useSessions';
 import ImportTimes from './ImportTimes';
 
@@ -18,6 +19,7 @@ interface SolveRecord {
   ao5?: number | null; // null if DNF, undefined if not enough solves
   ao12?: number | null; // null if DNF, undefined if not enough solves
   inspectionTime?: number; // time used for inspection in seconds, undefined if no inspection
+  puzzleType?: string; // e.g., '333', '222', '444', etc. Defaults to '333' if missing
 }
 
 interface TimerProps {}
@@ -473,7 +475,8 @@ const Timer: React.FC<TimerProps> = () => {
         scramble: currentScramble,
         timestamp: Date.now(),
         state: solveState,
-        inspectionTime: inspectionTimeUsed
+        inspectionTime: inspectionTimeUsed,
+        puzzleType: '333' // Default to 3x3x3 for now
       };
       
       addSolveToActiveSession(newSolve);
@@ -1254,6 +1257,13 @@ const Timer: React.FC<TimerProps> = () => {
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
+                              <PuzzleIcon 
+                                puzzleType={solve.puzzleType || '333'}
+                                size={14}
+                                className={highlighting.isFastest ? 'text-green-600' : 
+                                         highlighting.isSlowest ? 'text-red-600' : 
+                                         'text-current'}
+                              />
                               <span 
                                 className="text-xs font-medium"
                                 style={{ 
