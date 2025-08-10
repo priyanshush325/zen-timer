@@ -1146,6 +1146,22 @@ const Timer: React.FC<TimerProps> = () => {
             </kbd>{' '}
             to close dialogs
           </div>
+          
+          {/* Analytics Disclaimer */}
+          <div className="mt-3">
+            <div className="text-[10px] opacity-50" style={{ color: 'var(--text-secondary)' }}>
+              Zen Timer uses Google Analytics.{' '}
+              <a 
+                href="https://github.com/your-username/zen-timer/blob/main/index.html#L11-L19" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline hover:opacity-80 transition-opacity"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                Check the code here
+              </a>
+            </div>
+          </div>
         </div>
         </div>
 
