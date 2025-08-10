@@ -1,9 +1,10 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
 import { randomScrambleForEvent } from 'cubing/scramble';
 import PuzzleIcon from './PuzzleIcon';
 
 interface ScrambleGeneratorProps {
   onNewScramble?: (scramble: string) => void;
+  onCubeTypeChange?: (cubeType: string) => void;
 }
 
 export interface ScrambleGeneratorRef {
@@ -11,20 +12,24 @@ export interface ScrambleGeneratorRef {
   previousScramble: () => void;
   nextScramble: () => void;
   getCurrentScramble: () => string;
+  getCurrentCubeType: () => string;
 }
 
-const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProps>(({ onNewScramble }, ref) => {
+const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProps>(({ onNewScramble, onCubeTypeChange }, ref) => {
   const [scramble, setScramble] = useState('');
   const [scrambleHistory, setScrambleHistory] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [cubeType, setCubeType] = useState('333');
+  const [showCubeSelector, setShowCubeSelector] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const generateScramble = async (): Promise<string> => {
     try {
-      // Generate 3x3x3 scramble using cubing library
-      const scramble = await randomScrambleForEvent('333');
+      // Generate scramble using cubing library for current cube type
+      const scramble = await randomScrambleForEvent(cubeType);
       return scramble.toString();
     } catch (error) {
-      console.error('Failed to generate scramble with cubing library:', error);
+      console.error(`Failed to generate scramble for ${cubeType} with cubing library:`, error);
       // Display error message to user if scramble generation fails
       return 'Error Generating Scramble';
     }
@@ -63,17 +68,62 @@ const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProp
   };
 
   const getCurrentScramble = () => scramble;
+  const getCurrentCubeType = () => cubeType;
+
+  const handleCubeTypeChange = (newCubeType: string) => {
+    setCubeType(newCubeType);
+    setShowCubeSelector(false);
+    // Clear history when changing cube type
+    setScrambleHistory([]);
+    setCurrentIndex(0);
+    if (onCubeTypeChange) {
+      onCubeTypeChange(newCubeType);
+    }
+  };
 
   useImperativeHandle(ref, () => ({
     newScramble,
     previousScramble,
     nextScramble,
-    getCurrentScramble
-  }));
+    getCurrentScramble,
+    getCurrentCubeType
+ }));
 
   useEffect(() => {
     newScramble();
   }, []);
+
+  // Generate new scramble when cube type changes
+  useEffect(() => {
+    if (cubeType) {
+      newScramble();
+    }
+  }, [cubeType]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowCubeSelector(false);
+      }
+    };
+
+    if (showCubeSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showCubeSelector]);
+
+  const cubeOptions = [
+    { value: '222', label: '2x2x2' },
+    { value: '333', label: '3x3x3' },
+    { value: '444', label: '4x4x4' },
+    { value: '555', label: '5x5x5' },
+    { value: '666', label: '6x6x6' },
+    { value: '777', label: '7x7x7' }
+  ];
 
   return (
     <div className="mx-auto mb-8">
@@ -110,9 +160,53 @@ const ScrambleGenerator = forwardRef<ScrambleGeneratorRef, ScrambleGeneratorProp
             letterSpacing: '0.05em'
           }}
         >
-          {/* Puzzle Icon */}
-          <div className="flex-shrink-0">
-            <PuzzleIcon puzzleType="333" size={20} />
+          {/* Puzzle Icon - Clickable */}
+          <div className="flex-shrink-0 relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowCubeSelector(!showCubeSelector)}
+              className="flex items-center justify-center transition-colors rounded p-1 hover:bg-black/5"
+              title="Change cube type"
+            >
+              <PuzzleIcon puzzleType={cubeType} size={20} />
+            </button>
+            
+            {/* Cube Type Selector Dropdown */}
+            {showCubeSelector && (
+              <div 
+                className="absolute top-full left-0 mt-2 py-2 rounded-lg shadow-lg border z-50"
+                style={{
+                  background: 'var(--bg-primary)',
+                  borderColor: 'var(--border-medium)',
+                  boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)'
+                }}
+              >
+                {cubeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleCubeTypeChange(option.value)}
+                    className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                      cubeType === option.value ? 'font-medium' : ''
+                    }`}
+                    style={{
+                      color: cubeType === option.value ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      background: cubeType === option.value ? 'var(--hover-bg)' : 'transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (cubeType !== option.value) {
+                        e.currentTarget.style.background = 'var(--hover-bg)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (cubeType !== option.value) {
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <span>{scramble}</span>
         </div>

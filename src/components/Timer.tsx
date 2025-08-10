@@ -476,7 +476,7 @@ const Timer: React.FC<TimerProps> = () => {
         timestamp: Date.now(),
         state: solveState,
         inspectionTime: inspectionTimeUsed,
-        puzzleType: '333' // Default to 3x3x3 for now
+        puzzleType: scrambleRef.current?.getCurrentCubeType() || '333'
       };
       
       addSolveToActiveSession(newSolve);
