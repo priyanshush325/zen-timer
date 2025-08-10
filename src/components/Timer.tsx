@@ -4,6 +4,7 @@ import MediaWidget from './MediaWidget';
 import Settings, { SettingsData } from './Settings';
 import SessionManager from './SessionManager';
 import PuzzleIcon from './PuzzleIcon';
+import GraphWidget from './GraphWidget';
 import { useSessions } from '../hooks/useSessions';
 import ImportTimes from './ImportTimes';
 
@@ -47,6 +48,8 @@ const Timer: React.FC<TimerProps> = () => {
   const [selectedSolve, setSelectedSolve] = useState<SolveRecord | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [deleteConfirmationActive, setDeleteConfirmationActive] = useState(false);
+  const [graphRefreshTrigger, setGraphRefreshTrigger] = useState(0);
+  const [currentCubeType, setCurrentCubeType] = useState('333');
   const [toastFadingOut, setToastFadingOut] = useState(false);
   const [inspectionTime, setInspectionTime] = useState(15);
   const [inspectionOvertime, setInspectionOvertime] = useState(0);
@@ -476,10 +479,13 @@ const Timer: React.FC<TimerProps> = () => {
         timestamp: Date.now(),
         state: solveState,
         inspectionTime: inspectionTimeUsed,
-        puzzleType: scrambleRef.current?.getCurrentCubeType() || '333'
+        puzzleType: currentCubeType
       };
       
       addSolveToActiveSession(newSolve);
+      
+      // Trigger graph refresh
+      setGraphRefreshTrigger(Date.now());
       
       // Generate a new scramble after completing a solve
       if (scrambleRef.current) {
@@ -762,6 +768,7 @@ const Timer: React.FC<TimerProps> = () => {
         <ScrambleGenerator 
           ref={scrambleRef}
           onNewScramble={() => {}}
+          onCubeTypeChange={(cubeType) => setCurrentCubeType(cubeType)}
         />
       </div>
       
@@ -1563,6 +1570,16 @@ const Timer: React.FC<TimerProps> = () => {
           isFocused={isFocused}
         />
       )}
+
+      {/* Graph Widget */}
+      <GraphWidget 
+        isFocused={isFocused} 
+        theme={theme} 
+        currentCubeType={currentCubeType}
+        refreshTrigger={graphRefreshTrigger}
+        sessions={sessions}
+        getActiveSession={getActiveSession}
+      />
 
       {/* Media Widget */}
       <MediaWidget isFocused={isFocused} theme={theme} />

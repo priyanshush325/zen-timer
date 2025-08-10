@@ -333,6 +333,7 @@ export const useSessions = () => {
   return {
     sessions: sessionManager.sessions,
     activeSessionId: sessionManager.activeSessionId,
+    lastUpdated: sessionManager.lastUpdated,
     getActiveSession,
     createSession,
     switchSession,
