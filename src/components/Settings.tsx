@@ -1,12 +1,23 @@
 import React from 'react';
 import ImportTimes from './ImportTimes';
 
+export type TimerPrecision = 'thousandths' | 'hundredths' | 'tenths' | 'seconds' | 'none';
+
 export interface SettingsData {
   holdDuration: number; // in milliseconds
   useInspection: boolean;
   timerFontSize: number; // 1-5 scale (small to extra large)
   averageFontSize: number; // 1-5 scale (small to extra large)
+  timerPrecision: TimerPrecision; // how the timer updates while a solve is running
 }
+
+const TIMER_PRECISION_OPTIONS: { value: TimerPrecision; label: string; description: string }[] = [
+  { value: 'thousandths', label: '0.001', description: 'Update to the thousandth of a second while solving' },
+  { value: 'hundredths', label: '0.01', description: 'Update to the hundredth of a second while solving' },
+  { value: 'tenths', label: '0.1', description: 'Update to the tenth of a second while solving' },
+  { value: 'seconds', label: '1', description: 'Update every second while solving' },
+  { value: 'none', label: 'Off', description: 'Hide the time and show "Timing" while solving' }
+];
 
 interface SettingsProps {
   settings: SettingsData;
@@ -83,6 +94,13 @@ const Settings: React.FC<SettingsProps> = ({
     onSettingsChange({
       ...settings,
       averageFontSize: value
+    });
+  };
+
+  const handleTimerPrecisionChange = (value: TimerPrecision) => {
+    onSettingsChange({
+      ...settings,
+      timerPrecision: value
     });
   };
 
@@ -241,6 +259,40 @@ const Settings: React.FC<SettingsProps> = ({
                 ? 'Enable 15-second inspection period before solving'
                 : 'Start timing immediately when spacebar is released'
               }
+            </div>
+          </div>
+
+          {/* Timer Update Precision */}
+          <div className="space-y-3">
+            <label 
+              className="text-sm font-medium"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              Timer Update
+            </label>
+            <div 
+              className="flex rounded-lg p-1 gap-1"
+              style={{ background: 'var(--gray-100)' }}
+            >
+              {TIMER_PRECISION_OPTIONS.map((option) => {
+                const isSelected = settings.timerPrecision === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => handleTimerPrecisionChange(option.value)}
+                    className="flex-1 py-1.5 rounded-md text-sm font-mono transition-colors focus:outline-none"
+                    style={{
+                      background: isSelected ? '#22c55e' : 'transparent',
+                      color: isSelected ? '#ffffff' : 'var(--text-secondary)'
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {TIMER_PRECISION_OPTIONS.find((option) => option.value === settings.timerPrecision)?.description}
             </div>
           </div>
 

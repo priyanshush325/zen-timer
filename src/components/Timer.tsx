@@ -65,7 +65,8 @@ const Timer: React.FC<TimerProps> = () => {
     holdDuration: 500,
     useInspection: true,
     timerFontSize: 3, // Default to medium size
-    averageFontSize: 2 // Default to small-medium size
+    averageFontSize: 2, // Default to small-medium size
+    timerPrecision: 'hundredths'
   });
   const [, forceUpdate] = useState({});
   const scrambleRef = useRef<ScrambleGeneratorRef>(null);
@@ -200,7 +201,8 @@ const Timer: React.FC<TimerProps> = () => {
     if (savedSettings) {
       try {
         const parsedSettings = JSON.parse(savedSettings);
-        setSettings(parsedSettings);
+        // Merge over defaults so settings saved before new options existed still get them
+        setSettings((prev) => ({ ...prev, ...parsedSettings }));
       } catch (error) {
         console.error('Failed to parse saved settings:', error);
       }
@@ -340,6 +342,30 @@ const Timer: React.FC<TimerProps> = () => {
     return `${seconds}.${ms.toString().padStart(2, '0')}`;
   };
 
+  // Formats the live time while a solve is running, according to the timer precision setting
+  const formatRunningTime = (milliseconds: number): string => {
+    const precision = settings.timerPrecision;
+    if (precision === 'none') {
+      return 'Timing';
+    }
+    if (precision === 'hundredths') {
+      return formatTime(milliseconds);
+    }
+
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const secondsText = minutes > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : `${seconds}`;
+
+    if (precision === 'seconds') {
+      return secondsText;
+    }
+    if (precision === 'tenths') {
+      return `${secondsText}.${Math.floor((milliseconds % 1000) / 100)}`;
+    }
+    return `${secondsText}.${Math.floor(milliseconds % 1000).toString().padStart(3, '0')}`;
+  };
+
   const getDisplayColor = (): string => {
     // Only show hold duration colors when actually able to start timer
     if (isKeyDown && keyDownTime) {
@@ -400,6 +426,9 @@ const Timer: React.FC<TimerProps> = () => {
     }
     if (state === 'ready') {
       return '0.00';
+    }
+    if (state === 'running') {
+      return formatRunningTime(time);
     }
     return formatTime(time);
   };
